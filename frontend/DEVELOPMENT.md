@@ -44,10 +44,10 @@ Si `npm run validate` falla, **NO** hagas commit. Arregla los errores primero.
 
 El formateo automático de código está configurado en `.prettierrc`:
 
-- **Tabs**: Usa tabs en lugar de espacios
+- **Indentación**: 2 espacios
 - **Comillas**: Single quotes (`'`)
 - **Print Width**: 100 caracteres
-- **Trailing Commas**: No usa comas finales
+- **Trailing Commas**: Habilitadas (estilo ES5)
 - **Plugin Svelte**: Formateo específico para archivos `.svelte`
 
 ### Auto-formateo en el Editor
