@@ -290,7 +290,7 @@
             {@const isCurrentMonth = isSameMonth(day, currentDate)}
             {@const isWeekendDay = isWeekend(day)}
             <div
-              class="h-24 p-2 border-b border-r border-gray-200 {isCurrentMonth
+              class="h-24 p-1 border-b border-r border-gray-200 {isCurrentMonth
                 ? isWeekendDay
                   ? 'bg-gray-100'
                   : 'bg-white'
@@ -305,14 +305,14 @@
 
         <!-- Vacation bars overlay -->
         <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
-          <div class="grid grid-cols-7 h-full gap-0 p-2">
+          <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
             {#each segments as segment}
               {@const isPending = segment.vacation.status === 'Pending'}
               {@const baseColor = getPersonColorValue(segment.person.id)}
               <div
-                class="pointer-events-auto text-xs px-2 py-0.5 rounded text-white truncate {isPending
+                class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
                   ? ''
-                  : getPersonColor(segment.person.id)} mt-3"
+                  : getPersonColor(segment.person.id)}"
                 style="grid-column: {segment.startCol +
                   1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
                   ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
