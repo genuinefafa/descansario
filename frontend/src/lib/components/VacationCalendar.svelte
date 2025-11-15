@@ -296,7 +296,7 @@
                   : 'bg-white'
                 : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
             >
-              <div class="text-sm font-medium {isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}">
+              <div class="text-xs font-medium {isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}">
                 {format(day, 'd')}
               </div>
             </div>
@@ -312,10 +312,10 @@
               <div
                 class="pointer-events-auto text-xs px-2 py-1 rounded text-white truncate {isPending
                   ? ''
-                  : getPersonColor(segment.person.id)} mt-1"
+                  : getPersonColor(segment.person.id)} mt-6"
                 style="grid-column: {segment.startCol +
                   1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
-                  ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 6px, rgba(255,255,255,0.4) 6px, rgba(255,255,255,0.4) 12px);`
+                  ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
                   : ''}"
                 title="{segment.person.name} - {segment.vacation.status}"
               >
