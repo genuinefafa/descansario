@@ -83,6 +83,20 @@
     return colors[personId % colors.length];
   }
 
+  function getPersonColorValue(personId: number): string {
+    const colors = [
+      '#3b82f6', // blue-500
+      '#22c55e', // green-500
+      '#a855f7', // purple-500
+      '#ec4899', // pink-500
+      '#eab308', // yellow-500
+      '#6366f1', // indigo-500
+      '#ef4444', // red-500
+      '#14b8a6', // teal-500
+    ];
+    return colors[personId % colors.length];
+  }
+
   // Asignar filas a segmentos para evitar superposiciones
   function assignRows(segments: VacationSegment[]): VacationSegment[] {
     const rows: { startCol: number; endCol: number }[][] = [];
@@ -294,12 +308,15 @@
           <div class="grid grid-cols-7 h-full gap-0 p-2">
             {#each segments as segment}
               {@const isPending = segment.vacation.status === 'Pending'}
+              {@const baseColor = getPersonColorValue(segment.person.id)}
               <div
-                class="pointer-events-auto text-xs px-2 py-1 rounded text-white truncate {getPersonColor(
-                  segment.person.id
-                )} {isPending ? 'opacity-70 border-2 border-dashed border-gray-300' : ''} mt-1"
+                class="pointer-events-auto text-xs px-2 py-1 rounded text-white truncate {isPending
+                  ? ''
+                  : getPersonColor(segment.person.id)} mt-1"
                 style="grid-column: {segment.startCol +
-                  1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1};"
+                  1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
+                  ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 6px, rgba(255,255,255,0.4) 6px, rgba(255,255,255,0.4) 12px);`
+                  : ''}"
                 title="{segment.person.name} - {segment.vacation.status}"
               >
                 {segment.person.name.split(' ')[0]}
