@@ -75,12 +75,8 @@
 	<div class="max-w-6xl mx-auto px-4">
 		<!-- Header -->
 		<div class="mb-8">
-			<h1 class="text-4xl font-bold text-gray-900 mb-2">
-				🏖️ Descansario
-			</h1>
-			<p class="text-lg text-gray-600">
-				Gestión de vacaciones para tu equipo
-			</p>
+			<h1 class="text-4xl font-bold text-gray-900 mb-2">🏖️ Descansario</h1>
+			<p class="text-lg text-gray-600">Gestión de vacaciones para tu equipo</p>
 		</div>
 
 		{#if error}
@@ -108,7 +104,7 @@
 						<p class="text-gray-500">Cargando...</p>
 					</div>
 				{:else}
-					<PersonList persons={persons} onEdit={handleEdit} onDelete={handleDelete} />
+					<PersonList {persons} onEdit={handleEdit} onDelete={handleDelete} />
 				{/if}
 			{/if}
 		</div>

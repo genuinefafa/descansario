@@ -20,16 +20,24 @@
 		<table class="min-w-full divide-y divide-gray-200">
 			<thead class="bg-gray-50">
 				<tr>
-					<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+					<th
+						class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+					>
 						Nombre
 					</th>
-					<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+					<th
+						class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+					>
 						Email
 					</th>
-					<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+					<th
+						class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+					>
 						Días disponibles
 					</th>
-					<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+					<th
+						class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+					>
 						Acciones
 					</th>
 				</tr>
@@ -47,16 +55,10 @@
 							<div class="text-sm text-gray-900">{person.availableDays} días</div>
 						</td>
 						<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-							<button
-								onclick={() => onEdit(person)}
-								class="text-blue-600 hover:text-blue-900 mr-4"
-							>
+							<button onclick={() => onEdit(person)} class="text-blue-600 hover:text-blue-900 mr-4">
 								Editar
 							</button>
-							<button
-								onclick={() => onDelete(person.id)}
-								class="text-red-600 hover:text-red-900"
-							>
+							<button onclick={() => onDelete(person.id)} class="text-red-600 hover:text-red-900">
 								Eliminar
 							</button>
 						</td>
