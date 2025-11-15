@@ -101,7 +101,7 @@
 	}
 
 	// Vacations handlers
-	async function handleVacationSubmit(data: { personId: number; startDate: string; endDate: string; status?: string }) {
+	async function handleVacationSubmit(data: { personId: number; startDate: string; endDate: string; status?: 'Pending' | 'Approved' | 'Rejected' }) {
 		try {
 			if (editingVacation) {
 				await vacationsService.update(editingVacation.id, { ...data, status: data.status || 'Pending' });
