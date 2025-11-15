@@ -310,9 +310,9 @@
               {@const isPending = segment.vacation.status === 'Pending'}
               {@const baseColor = getPersonColorValue(segment.person.id)}
               <div
-                class="pointer-events-auto text-xs px-2 py-1 rounded text-white truncate {isPending
+                class="pointer-events-auto text-xs px-2 py-1 rounded text-white truncate flex items-center {isPending
                   ? ''
-                  : getPersonColor(segment.person.id)} mt-6"
+                  : getPersonColor(segment.person.id)} mt-4"
                 style="grid-column: {segment.startCol +
                   1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
                   ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
