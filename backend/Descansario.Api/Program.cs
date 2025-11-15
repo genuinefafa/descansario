@@ -3,6 +3,7 @@ using Descansario.Api.Data;
 using Descansario.Api.Models;
 using Descansario.Api.DTOs;
 using Descansario.Api.Helpers;
+using Descansario.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,9 @@ builder.Services.AddSwaggerGen();
 // Database
 builder.Services.AddDbContext<DescansarioDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Business Services
+builder.Services.AddScoped<WorkingDaysCalculator>();
 
 // CORS para desarrollo
 builder.Services.AddCors(options =>
@@ -205,5 +209,204 @@ app.MapDelete("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =
 })
 .WithName("DeletePerson")
 .WithTags("Persons");
+
+// ==============================================================
+// CRUD Endpoints - Vacations
+// ==============================================================
+
+// GET /api/vacations - Listar todas las vacaciones
+app.MapGet("/api/vacations", async (DescansarioDbContext db) =>
+{
+    var vacations = await db.Vacations
+        .Include(v => v.Person)
+        .Select(v => new VacationDto
+        {
+            Id = v.Id,
+            PersonId = v.PersonId,
+            PersonName = v.Person!.Name,
+            StartDate = v.StartDate,
+            EndDate = v.EndDate,
+            WorkingDaysCount = v.WorkingDaysCount,
+            Status = v.Status.ToString()
+        })
+        .ToListAsync();
+
+    return Results.Ok(vacations);
+})
+.WithName("GetVacations")
+.WithTags("Vacations");
+
+// GET /api/vacations/person/{personId} - Listar vacaciones de una persona
+app.MapGet("/api/vacations/person/{personId:int}", async (int personId, DescansarioDbContext db) =>
+{
+    var vacations = await db.Vacations
+        .Include(v => v.Person)
+        .Where(v => v.PersonId == personId)
+        .Select(v => new VacationDto
+        {
+            Id = v.Id,
+            PersonId = v.PersonId,
+            PersonName = v.Person!.Name,
+            StartDate = v.StartDate,
+            EndDate = v.EndDate,
+            WorkingDaysCount = v.WorkingDaysCount,
+            Status = v.Status.ToString()
+        })
+        .ToListAsync();
+
+    return Results.Ok(vacations);
+})
+.WithName("GetVacationsByPerson")
+.WithTags("Vacations");
+
+// GET /api/vacations/{id} - Obtener una vacación por ID
+app.MapGet("/api/vacations/{id:int}", async (int id, DescansarioDbContext db) =>
+{
+    var vacation = await db.Vacations
+        .Include(v => v.Person)
+        .Where(v => v.Id == id)
+        .Select(v => new VacationDto
+        {
+            Id = v.Id,
+            PersonId = v.PersonId,
+            PersonName = v.Person!.Name,
+            StartDate = v.StartDate,
+            EndDate = v.EndDate,
+            WorkingDaysCount = v.WorkingDaysCount,
+            Status = v.Status.ToString()
+        })
+        .FirstOrDefaultAsync();
+
+    if (vacation == null)
+        return Results.NotFound(new { message = $"Vacación con ID {id} no encontrada" });
+
+    return Results.Ok(vacation);
+})
+.WithName("GetVacationById")
+.WithTags("Vacations");
+
+// POST /api/vacations - Crear una nueva vacación
+app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
+{
+    // Validar fechas
+    if (dto.StartDate > dto.EndDate)
+    {
+        return Results.BadRequest(new { message = "La fecha de inicio debe ser anterior o igual a la fecha de fin" });
+    }
+
+    // Validar que la persona exista
+    var personExists = await db.Persons.AnyAsync(p => p.Id == dto.PersonId);
+    if (!personExists)
+    {
+        return Results.BadRequest(new { message = "La persona especificada no existe" });
+    }
+
+    // Calcular días hábiles
+    var workingDays = await calculator.CalculateWorkingDaysAsync(dto.StartDate, dto.EndDate);
+
+    var vacation = new Vacation
+    {
+        PersonId = dto.PersonId,
+        StartDate = dto.StartDate,
+        EndDate = dto.EndDate,
+        WorkingDaysCount = workingDays,
+        Status = VacationStatus.Pending
+    };
+
+    db.Vacations.Add(vacation);
+    await db.SaveChangesAsync();
+
+    // Cargar la persona para el DTO de respuesta
+    await db.Entry(vacation).Reference(v => v.Person).LoadAsync();
+
+    var vacationDto = new VacationDto
+    {
+        Id = vacation.Id,
+        PersonId = vacation.PersonId,
+        PersonName = vacation.Person!.Name,
+        StartDate = vacation.StartDate,
+        EndDate = vacation.EndDate,
+        WorkingDaysCount = vacation.WorkingDaysCount,
+        Status = vacation.Status.ToString()
+    };
+
+    return Results.Created($"/api/vacations/{vacation.Id}", vacationDto);
+})
+.WithName("CreateVacation")
+.WithTags("Vacations");
+
+// PUT /api/vacations/{id} - Actualizar una vacación
+app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
+{
+    var vacation = await db.Vacations.FindAsync(id);
+
+    if (vacation == null)
+        return Results.NotFound(new { message = $"Vacación con ID {id} no encontrada" });
+
+    // Validar fechas
+    if (dto.StartDate > dto.EndDate)
+    {
+        return Results.BadRequest(new { message = "La fecha de inicio debe ser anterior o igual a la fecha de fin" });
+    }
+
+    // Validar que la persona exista
+    var personExists = await db.Persons.AnyAsync(p => p.Id == dto.PersonId);
+    if (!personExists)
+    {
+        return Results.BadRequest(new { message = "La persona especificada no existe" });
+    }
+
+    // Recalcular días hábiles si las fechas cambiaron
+    if (vacation.StartDate != dto.StartDate || vacation.EndDate != dto.EndDate)
+    {
+        vacation.WorkingDaysCount = await calculator.CalculateWorkingDaysAsync(dto.StartDate, dto.EndDate);
+    }
+
+    vacation.PersonId = dto.PersonId;
+    vacation.StartDate = dto.StartDate;
+    vacation.EndDate = dto.EndDate;
+
+    // Parsear el status
+    if (Enum.TryParse<VacationStatus>(dto.Status, out var status))
+    {
+        vacation.Status = status;
+    }
+
+    await db.SaveChangesAsync();
+
+    // Cargar la persona para el DTO de respuesta
+    await db.Entry(vacation).Reference(v => v.Person).LoadAsync();
+
+    var vacationDto = new VacationDto
+    {
+        Id = vacation.Id,
+        PersonId = vacation.PersonId,
+        PersonName = vacation.Person!.Name,
+        StartDate = vacation.StartDate,
+        EndDate = vacation.EndDate,
+        WorkingDaysCount = vacation.WorkingDaysCount,
+        Status = vacation.Status.ToString()
+    };
+
+    return Results.Ok(vacationDto);
+})
+.WithName("UpdateVacation")
+.WithTags("Vacations");
+
+// DELETE /api/vacations/{id} - Eliminar una vacación
+app.MapDelete("/api/vacations/{id:int}", async (int id, DescansarioDbContext db) =>
+{
+    var vacation = await db.Vacations.FindAsync(id);
+
+    if (vacation == null)
+        return Results.NotFound(new { message = $"Vacación con ID {id} no encontrada" });
+
+    db.Vacations.Remove(vacation);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { message = "Vacación eliminada correctamente" });
+})
+.WithName("DeleteVacation")
+.WithTags("Vacations");
 
 app.Run();
