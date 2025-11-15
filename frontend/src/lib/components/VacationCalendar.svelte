@@ -40,8 +40,8 @@
   let currentDate = $state(new Date());
   const monthStart = $derived(startOfMonth(currentDate));
   const monthEnd = $derived(endOfMonth(currentDate));
-  const calendarStart = $derived(startOfWeek(monthStart, { weekStartsOn: 1 }));
-  const calendarEnd = $derived(endOfWeek(monthEnd, { weekStartsOn: 1 }));
+  const calendarStart = $derived(startOfWeek(monthStart, { weekStartsOn: 0 }));
+  const calendarEnd = $derived(endOfWeek(monthEnd, { weekStartsOn: 0 }));
 
   // Organizar días en semanas
   const calendarWeeks = $derived(() => {
@@ -169,8 +169,8 @@
           currentSubSegmentEnd = currentDay;
         } else {
           // Guardar el subsegmento actual y empezar uno nuevo
-          const startCol = (getDay(currentSubSegmentStart) + 6) % 7; // convertir dom=0 a lun=0
-          const endCol = (getDay(currentSubSegmentEnd) + 6) % 7;
+          const startCol = getDay(currentSubSegmentStart); // dom=0, lun=1, ..., sáb=6
+          const endCol = getDay(currentSubSegmentEnd);
           const span = endCol - startCol + 1;
 
           segments.push({
@@ -187,8 +187,8 @@
       }
 
       // Agregar el último subsegmento
-      const startCol = (getDay(currentSubSegmentStart) + 6) % 7;
-      const endCol = (getDay(currentSubSegmentEnd) + 6) % 7;
+      const startCol = getDay(currentSubSegmentStart); // dom=0, lun=1, ..., sáb=6
+      const endCol = getDay(currentSubSegmentEnd);
       const span = endCol - startCol + 1;
 
       segments.push({
@@ -258,7 +258,7 @@
   <div class="border border-gray-200 rounded-lg overflow-hidden">
     <!-- Day headers -->
     <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
-      {#each ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as day}
+      {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
         <div class="p-2 text-center text-sm font-semibold text-gray-700">
           {day}
         </div>
@@ -293,10 +293,11 @@
         <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
           <div class="grid grid-cols-7 h-full gap-0 p-2">
             {#each segments as segment}
+              {@const isPending = segment.vacation.status === 'Pending'}
               <div
                 class="pointer-events-auto text-xs px-2 py-1 rounded text-white truncate {getPersonColor(
                   segment.person.id
-                )} mt-6"
+                )} {isPending ? 'opacity-70 border-2 border-dashed border-gray-300' : ''} mt-1"
                 style="grid-column: {segment.startCol +
                   1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1};"
                 title="{segment.person.name} - {segment.vacation.status}"
