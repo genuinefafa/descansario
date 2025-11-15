@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Sun circle -->
+  <circle cx="50" cy="50" r="30" fill="#FDB913"/>
+  <!-- Sun rays -->
+  <circle cx="50" cy="15" r="4" fill="#FDB913"/>
+  <circle cx="85" cy="50" r="4" fill="#FDB913"/>
+  <circle cx="50" cy="85" r="4" fill="#FDB913"/>
+  <circle cx="15" cy="50" r="4" fill="#FDB913"/>
+  <circle cx="73" cy="27" r="3.5" fill="#FDB913"/>
+  <circle cx="73" cy="73" r="3.5" fill="#FDB913"/>
+  <circle cx="27" cy="73" r="3.5" fill="#FDB913"/>
+  <circle cx="27" cy="27" r="3.5" fill="#FDB913"/>
+  <!-- Beach umbrella -->
+  <path d="M 65 60 Q 70 55 75 60 L 70 75 Z" fill="#EF4444"/>
+  <rect x="69" y="60" width="2" height="20" fill="#8B4513"/>
+</svg>

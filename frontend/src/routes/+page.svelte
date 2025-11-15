@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import PersonList from '$lib/components/PersonList.svelte';
   import PersonForm from '$lib/components/PersonForm.svelte';
   import VacationList from '$lib/components/VacationList.svelte';
@@ -12,7 +14,31 @@
 
   type Tab = 'persons' | 'vacations' | 'calendar';
 
-  let activeTab = $state<Tab>('persons');
+  // Read tab from URL query param
+  const urlTab = $derived(($page.url.searchParams.get('tab') as Tab) || 'persons');
+  let activeTab = $state<Tab>(urlTab);
+
+  // Sync activeTab with URL
+  $effect(() => {
+    const tab = ($page.url.searchParams.get('tab') as Tab) || 'persons';
+    if (tab !== activeTab) {
+      activeTab = tab;
+    }
+  });
+
+  // Page title based on active tab
+  const pageTitle = $derived(() => {
+    switch (activeTab) {
+      case 'persons':
+        return 'Personas - Descansario';
+      case 'vacations':
+        return 'Vacaciones - Descansario';
+      case 'calendar':
+        return 'Calendario - Descansario';
+      default:
+        return 'Descansario - Gestión de Vacaciones';
+    }
+  });
 
   // Persons state
   let persons = $state<Person[]>([]);
@@ -151,7 +177,16 @@
     showVacationForm = false;
     editingVacation = null;
   }
+
+  function changeTab(tab: Tab) {
+    activeTab = tab;
+    goto(`/?tab=${tab}`, { replaceState: true });
+  }
 </script>
+
+<svelte:head>
+  <title>{pageTitle()}</title>
+</svelte:head>
 
 <div class="min-h-screen bg-gray-50 py-8">
   <div class="max-w-6xl mx-auto px-4">
@@ -171,7 +206,7 @@
     <div class="mb-6 border-b border-gray-200">
       <nav class="-mb-px flex space-x-8">
         <button
-          onclick={() => (activeTab = 'persons')}
+          onclick={() => changeTab('persons')}
           class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'persons'
             ? 'border-blue-500 text-blue-600'
             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
@@ -179,7 +214,7 @@
           Personas
         </button>
         <button
-          onclick={() => (activeTab = 'vacations')}
+          onclick={() => changeTab('vacations')}
           class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'vacations'
             ? 'border-blue-500 text-blue-600'
             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
@@ -187,7 +222,7 @@
           Vacaciones
         </button>
         <button
-          onclick={() => (activeTab = 'calendar')}
+          onclick={() => changeTab('calendar')}
           class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'calendar'
             ? 'border-blue-500 text-blue-600'
             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
