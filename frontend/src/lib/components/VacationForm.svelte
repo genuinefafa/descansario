@@ -5,7 +5,7 @@
 	interface Props {
 		vacation?: Vacation | null;
 		persons: Person[];
-		onSubmit: (data: { personId: number; startDate: string; endDate: string; status?: string }) => Promise<void>;
+		onSubmit: (data: { personId: number; startDate: string; endDate: string; status?: 'Pending' | 'Approved' | 'Rejected' }) => Promise<void>;
 		onCancel: () => void;
 	}
 
