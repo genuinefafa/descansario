@@ -4,12 +4,13 @@
   import PersonForm from '$lib/components/PersonForm.svelte';
   import VacationList from '$lib/components/VacationList.svelte';
   import VacationForm from '$lib/components/VacationForm.svelte';
+  import VacationCalendar from '$lib/components/VacationCalendar.svelte';
   import { personsService } from '$lib/services/persons';
   import { vacationsService } from '$lib/services/vacations';
   import type { Person } from '$lib/types/person';
   import type { Vacation } from '$lib/types/vacation';
 
-  type Tab = 'persons' | 'vacations';
+  type Tab = 'persons' | 'vacations' | 'calendar';
 
   let activeTab = $state<Tab>('persons');
 
@@ -185,6 +186,14 @@
         >
           Vacaciones
         </button>
+        <button
+          onclick={() => (activeTab = 'calendar')}
+          class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'calendar'
+            ? 'border-blue-500 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        >
+          Calendario
+        </button>
       </nav>
     </div>
 
@@ -244,6 +253,14 @@
           {:else}
             <VacationList {vacations} onEdit={handleVacationEdit} onDelete={handleVacationDelete} />
           {/if}
+        {/if}
+      {:else if activeTab === 'calendar'}
+        {#if loading}
+          <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <p class="text-gray-500">Cargando...</p>
+          </div>
+        {:else}
+          <VacationCalendar {vacations} {persons} />
         {/if}
       {/if}
     </div>
