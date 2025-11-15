@@ -44,6 +44,10 @@
 			name = person.name;
 			email = person.email;
 			availableDays = person.availableDays;
+		} else {
+			name = '';
+			email = '';
+			availableDays = 20;
 		}
 	});
 </script>

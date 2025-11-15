@@ -29,13 +29,18 @@
 	}
 
 	async function handleSubmit(data: { name: string; email: string; availableDays: number }) {
-		if (editingPerson) {
-			await personsService.update(editingPerson.id, data);
-		} else {
-			await personsService.create(data);
+		try {
+			if (editingPerson) {
+				await personsService.update(editingPerson.id, data);
+			} else {
+				await personsService.create(data);
+			}
+			await loadPersons();
+			closeForm();
+		} catch (err) {
+			error = 'Error al guardar la persona';
+			console.error(err);
 		}
-		await loadPersons();
-		closeForm();
 	}
 
 	function handleEdit(person: Person) {
