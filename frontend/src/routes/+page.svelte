@@ -2,17 +2,33 @@
   import { onMount } from 'svelte';
   import PersonList from '$lib/components/PersonList.svelte';
   import PersonForm from '$lib/components/PersonForm.svelte';
+  import VacationList from '$lib/components/VacationList.svelte';
+  import VacationForm from '$lib/components/VacationForm.svelte';
   import { personsService } from '$lib/services/persons';
+  import { vacationsService } from '$lib/services/vacations';
   import type { Person } from '$lib/types/person';
+  import type { Vacation } from '$lib/types/vacation';
 
+  type Tab = 'persons' | 'vacations';
+
+  let activeTab = $state<Tab>('persons');
+
+  // Persons state
   let persons = $state<Person[]>([]);
-  let showForm = $state(false);
+  let showPersonForm = $state(false);
   let editingPerson = $state<Person | null>(null);
+
+  // Vacations state
+  let vacations = $state<Vacation[]>([]);
+  let showVacationForm = $state(false);
+  let editingVacation = $state<Vacation | null>(null);
+
+  // Common state
   let loading = $state(true);
   let error = $state('');
 
   onMount(async () => {
-    await loadPersons();
+    await Promise.all([loadPersons(), loadVacations()]);
   });
 
   async function loadPersons() {
@@ -28,7 +44,21 @@
     }
   }
 
-  async function handleSubmit(data: { name: string; email: string; availableDays: number }) {
+  async function loadVacations() {
+    try {
+      loading = true;
+      error = '';
+      vacations = await vacationsService.getAll();
+    } catch (err) {
+      error = 'Error al cargar las vacaciones. Verifica que el backend esté corriendo.';
+      console.error(err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Persons handlers
+  async function handlePersonSubmit(data: { name: string; email: string; availableDays: number }) {
     try {
       if (editingPerson) {
         await personsService.update(editingPerson.id, data);
@@ -36,19 +66,19 @@
         await personsService.create(data);
       }
       await loadPersons();
-      closeForm();
+      closePersonForm();
     } catch (err) {
       error = 'Error al guardar la persona';
       console.error(err);
     }
   }
 
-  function handleEdit(person: Person) {
+  function handlePersonEdit(person: Person) {
     editingPerson = person;
-    showForm = true;
+    showPersonForm = true;
   }
 
-  async function handleDelete(id: number) {
+  async function handlePersonDelete(id: number) {
     if (!confirm('¿Estás seguro de eliminar esta persona?')) return;
 
     try {
@@ -60,14 +90,65 @@
     }
   }
 
-  function openNewForm() {
+  function openNewPersonForm() {
     editingPerson = null;
-    showForm = true;
+    showPersonForm = true;
   }
 
-  function closeForm() {
-    showForm = false;
+  function closePersonForm() {
+    showPersonForm = false;
     editingPerson = null;
+  }
+
+  // Vacations handlers
+  async function handleVacationSubmit(data: {
+    personId: number;
+    startDate: string;
+    endDate: string;
+    status?: 'Pending' | 'Approved' | 'Rejected';
+  }) {
+    try {
+      if (editingVacation) {
+        await vacationsService.update(editingVacation.id, {
+          ...data,
+          status: data.status || 'Pending',
+        });
+      } else {
+        await vacationsService.create(data);
+      }
+      await loadVacations();
+      closeVacationForm();
+    } catch (err) {
+      error = 'Error al guardar la vacación';
+      console.error(err);
+    }
+  }
+
+  function handleVacationEdit(vacation: Vacation) {
+    editingVacation = vacation;
+    showVacationForm = true;
+  }
+
+  async function handleVacationDelete(id: number) {
+    if (!confirm('¿Estás seguro de eliminar esta vacación?')) return;
+
+    try {
+      await vacationsService.delete(id);
+      await loadVacations();
+    } catch (err) {
+      error = 'Error al eliminar la vacación';
+      console.error(err);
+    }
+  }
+
+  function openNewVacationForm() {
+    editingVacation = null;
+    showVacationForm = true;
+  }
+
+  function closeVacationForm() {
+    showVacationForm = false;
+    editingVacation = null;
   }
 </script>
 
@@ -85,26 +166,84 @@
       </div>
     {/if}
 
-    <!-- Form o Lista -->
-    <div class="mb-6">
-      {#if showForm}
-        <PersonForm person={editingPerson} onSubmit={handleSubmit} onCancel={closeForm} />
-      {:else}
-        <div class="mb-4">
-          <button
-            onclick={openNewForm}
-            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-          >
-            + Nueva Persona
-          </button>
-        </div>
+    <!-- Tabs -->
+    <div class="mb-6 border-b border-gray-200">
+      <nav class="-mb-px flex space-x-8">
+        <button
+          onclick={() => (activeTab = 'persons')}
+          class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'persons'
+            ? 'border-blue-500 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        >
+          Personas
+        </button>
+        <button
+          onclick={() => (activeTab = 'vacations')}
+          class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'vacations'
+            ? 'border-blue-500 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        >
+          Vacaciones
+        </button>
+      </nav>
+    </div>
 
-        {#if loading}
-          <div class="bg-white p-8 rounded-lg shadow-md text-center">
-            <p class="text-gray-500">Cargando...</p>
-          </div>
+    <!-- Content -->
+    <div class="mb-6">
+      {#if activeTab === 'persons'}
+        {#if showPersonForm}
+          <PersonForm
+            person={editingPerson}
+            onSubmit={handlePersonSubmit}
+            onCancel={closePersonForm}
+          />
         {:else}
-          <PersonList {persons} onEdit={handleEdit} onDelete={handleDelete} />
+          <div class="mb-4">
+            <button
+              onclick={openNewPersonForm}
+              class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+            >
+              + Nueva Persona
+            </button>
+          </div>
+
+          {#if loading}
+            <div class="bg-white p-8 rounded-lg shadow-md text-center">
+              <p class="text-gray-500">Cargando...</p>
+            </div>
+          {:else}
+            <PersonList {persons} onEdit={handlePersonEdit} onDelete={handlePersonDelete} />
+          {/if}
+        {/if}
+      {:else if activeTab === 'vacations'}
+        {#if showVacationForm}
+          <VacationForm
+            vacation={editingVacation}
+            {persons}
+            onSubmit={handleVacationSubmit}
+            onCancel={closeVacationForm}
+          />
+        {:else}
+          <div class="mb-4">
+            <button
+              onclick={openNewVacationForm}
+              class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+              disabled={persons.length === 0}
+            >
+              + Nueva Vacación
+            </button>
+            {#if persons.length === 0}
+              <p class="text-sm text-gray-500 mt-2">Primero debes crear al menos una persona</p>
+            {/if}
+          </div>
+
+          {#if loading}
+            <div class="bg-white p-8 rounded-lg shadow-md text-center">
+              <p class="text-gray-500">Cargando...</p>
+            </div>
+          {:else}
+            <VacationList {vacations} onEdit={handleVacationEdit} onDelete={handleVacationDelete} />
+          {/if}
         {/if}
       {/if}
     </div>
