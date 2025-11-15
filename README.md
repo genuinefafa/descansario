@@ -71,6 +71,24 @@ npm install
 npm run dev
 ```
 
+### ✅ Validación de Código
+
+**Antes de hacer commit**, ejecuta en el frontend:
+
+```bash
+cd frontend
+npm run validate
+```
+
+Este comando ejecuta:
+1. **ESLint**: Validación de estilo y problemas de código
+2. **Type Check**: Validación de tipos TypeScript + Svelte
+3. **Build**: Compilación del proyecto
+
+Si falla, arregla los errores antes de commitear. El CI ejecuta las mismas validaciones.
+
+Ver [DEVELOPMENT.md](frontend/DEVELOPMENT.md) para más detalles.
+
 ## 📁 Estructura del Proyecto
 
 ```
