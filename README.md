@@ -1,0 +1,150 @@
+# 🏖️ Descansario
+
+Aplicación web para gestionar y visualizar vacaciones de equipos, con calendario continuo y cálculo automático de días hábiles.
+
+## 🎯 Características Principales
+
+- **Calendario continuo** con scroll infinito por semanas
+- **Cálculo automático** de días hábiles (excluye fines de semana y feriados)
+- **Gestión de personas** y asignación de vacaciones
+- **Importación de feriados** de Argentina y España
+- **Exportación a iCal** para integración con calendarios externos
+- **Optimizado para Raspberry Pi 5** (~200MB RAM total)
+
+## 🏗️ Stack Tecnológico
+
+### Frontend
+- **SvelteKit** - Framework fullstack con TypeScript
+- **TailwindCSS** - Estilos utility-first
+- **date-fns** - Manipulación de fechas
+
+### Backend
+- **.NET 8** - API REST con Minimal APIs
+- **Entity Framework Core** - ORM
+- **SQLite** - Base de datos
+- **NodaTime** - Manejo avanzado de fechas y timezones
+
+### DevOps
+- **Docker + Docker Compose** - Containerización
+- **Nginx** - Servidor web para SPA
+
+## 🚀 Inicio Rápido
+
+### Prerequisitos
+
+- Docker y Docker Compose
+- .NET 8 SDK (para desarrollo local)
+- Node.js 20+ (para desarrollo local)
+
+### Desarrollo con Docker
+
+```bash
+# Levantar toda la aplicación
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f
+
+# Detener
+docker-compose down
+```
+
+La aplicación estará disponible en:
+- **Frontend**: http://localhost:3000
+- **API**: http://localhost:5000
+
+### Desarrollo Local
+
+#### Backend
+
+```bash
+cd backend
+dotnet restore
+dotnet run --project Descansario.Api
+```
+
+#### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 📁 Estructura del Proyecto
+
+```
+descansario/
+├── backend/              # API .NET 8
+│   ├── Descansario.Api/
+│   │   ├── Models/      # Modelos de datos
+│   │   ├── Data/        # DbContext y migraciones
+│   │   ├── Services/    # Lógica de negocio
+│   │   └── Program.cs   # Minimal APIs
+│   └── Dockerfile
+├── frontend/            # SPA SvelteKit
+│   ├── src/
+│   │   ├── lib/
+│   │   │   ├── components/
+│   │   │   └── services/
+│   │   └── routes/
+│   ├── Dockerfile
+│   └── package.json
+├── docker/              # Configuraciones Docker
+├── docs/                # Documentación
+└── docker-compose.yml
+```
+
+## 🗄️ Modelo de Datos
+
+### Person
+- `id`: Identificador único
+- `name`: Nombre completo
+- `email`: Email
+- `availableDays`: Días de vacaciones disponibles al año
+
+### Vacation
+- `id`: Identificador único
+- `personId`: Referencia a Person
+- `startDate`: Fecha de inicio
+- `endDate`: Fecha de fin
+- `workingDaysCount`: Días hábiles (calculado automáticamente)
+- `status`: Estado (pending, approved, rejected)
+
+### Holiday
+- `id`: Identificador único
+- `date`: Fecha del feriado
+- `name`: Nombre del feriado
+- `country`: País (AR, ES)
+- `region`: Provincia/Comunidad autónoma (opcional)
+
+## 🎨 Capturas
+
+_(Próximamente)_
+
+## 📝 Estado del Proyecto
+
+**Fase actual**: Setup inicial
+
+- [x] Estructura de carpetas
+- [x] Configuración Docker
+- [ ] Backend base (.NET 8)
+- [ ] Frontend base (SvelteKit)
+- [ ] CRUD de personas
+- [ ] Calendario básico
+- [ ] Cálculo de días hábiles
+- [ ] Sistema de feriados
+- [ ] Autenticación
+- [ ] Exportación iCal
+
+## 🤝 Contribuir
+
+Este es un proyecto personal, pero sugerencias y feedback son bienvenidos.
+
+## 📄 Licencia
+
+MIT
+
+---
+
+**Desarrollado con ❤️ para gestionar vacaciones de forma simple y eficiente**
