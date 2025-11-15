@@ -12,6 +12,10 @@
     subMonths,
     parseISO,
     isWithinInterval,
+    getDay,
+    max,
+    min,
+    eachDayOfInterval,
   } from 'date-fns';
   import { es } from 'date-fns/locale';
   import type { Vacation } from '$lib/types/vacation';
@@ -22,30 +26,43 @@
     persons: Person[];
   }
 
+  interface VacationSegment {
+    vacation: Vacation;
+    person: Person;
+    startCol: number; // 0-6 (lunes=0, domingo=6)
+    span: number; // cuántas columnas ocupa
+    weekStart: Date;
+    row?: number; // fila asignada para evitar superposiciones
+  }
+
   let { vacations, persons }: Props = $props();
 
   let currentDate = $state(new Date());
   const monthStart = $derived(startOfMonth(currentDate));
   const monthEnd = $derived(endOfMonth(currentDate));
-  const startDate = $derived(startOfWeek(monthStart, { weekStartsOn: 1 }));
-  const endDate = $derived(endOfWeek(monthEnd, { weekStartsOn: 1 }));
+  const calendarStart = $derived(startOfWeek(monthStart, { weekStartsOn: 1 }));
+  const calendarEnd = $derived(endOfWeek(monthEnd, { weekStartsOn: 1 }));
 
-  const calendarDays = $derived(() => {
-    const days: Date[] = [];
-    let day = startDate;
-    while (day <= endDate) {
-      days.push(day);
-      day = addDays(day, 1);
+  // Organizar días en semanas
+  const calendarWeeks = $derived(() => {
+    const weeks: Date[][] = [];
+    let currentWeekStart = calendarStart;
+
+    while (currentWeekStart <= calendarEnd) {
+      const week: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        week.push(addDays(currentWeekStart, i));
+      }
+      weeks.push(week);
+      currentWeekStart = addDays(currentWeekStart, 7);
     }
-    return days;
+
+    return weeks;
   });
 
-  function getVacationsForDay(day: Date): Vacation[] {
-    return vacations.filter((vacation) => {
-      const start = parseISO(vacation.startDate);
-      const end = parseISO(vacation.endDate);
-      return isWithinInterval(day, { start, end });
-    });
+  function isWeekend(day: Date): boolean {
+    const dayOfWeek = getDay(day);
+    return dayOfWeek === 0 || dayOfWeek === 6; // domingo o sábado
   }
 
   function getPersonById(id: number): Person | undefined {
@@ -64,6 +81,126 @@
       'bg-teal-500',
     ];
     return colors[personId % colors.length];
+  }
+
+  // Asignar filas a segmentos para evitar superposiciones
+  function assignRows(segments: VacationSegment[]): VacationSegment[] {
+    const rows: { startCol: number; endCol: number }[][] = [];
+
+    for (const segment of segments) {
+      const endCol = segment.startCol + segment.span - 1;
+      let assignedRow = -1;
+
+      // Buscar la primera fila disponible
+      for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+        const rowSegments = rows[rowIdx];
+        let hasConflict = false;
+
+        for (const existing of rowSegments) {
+          // Verificar si hay superposición
+          if (!(endCol < existing.startCol || segment.startCol > existing.endCol)) {
+            hasConflict = true;
+            break;
+          }
+        }
+
+        if (!hasConflict) {
+          assignedRow = rowIdx;
+          break;
+        }
+      }
+
+      // Si no hay fila disponible, crear una nueva
+      if (assignedRow === -1) {
+        assignedRow = rows.length;
+        rows.push([]);
+      }
+
+      rows[assignedRow].push({ startCol: segment.startCol, endCol });
+      segment.row = assignedRow;
+    }
+
+    return segments;
+  }
+
+  // Calcular segmentos de vacaciones para una semana
+  function getVacationSegments(week: Date[]): VacationSegment[] {
+    const segments: VacationSegment[] = [];
+    const weekStart = week[0];
+    const weekEnd = week[6];
+
+    for (const vacation of vacations) {
+      const person = getPersonById(vacation.personId);
+      if (!person) continue;
+
+      const vacStart = parseISO(vacation.startDate);
+      const vacEnd = parseISO(vacation.endDate);
+
+      // Verificar si la vacación intersecta con esta semana
+      if (vacStart > weekEnd || vacEnd < weekStart) continue;
+
+      // Calcular el rango de días de la vacación en esta semana (solo días hábiles)
+      const segmentStart = max([vacStart, weekStart]);
+      const segmentEnd = min([vacEnd, weekEnd]);
+
+      // Obtener todos los días del segmento
+      const segmentDays = eachDayOfInterval({ start: segmentStart, end: segmentEnd });
+
+      // Filtrar solo días laborables
+      const workDays = segmentDays.filter((day) => !isWeekend(day));
+
+      if (workDays.length === 0) continue;
+
+      // Agrupar días consecutivos en subsegmentos
+      let currentSubSegmentStart = workDays[0];
+      let currentSubSegmentEnd = workDays[0];
+
+      for (let i = 1; i < workDays.length; i++) {
+        const prevDay = workDays[i - 1];
+        const currentDay = workDays[i];
+
+        // Si el día actual es consecutivo al anterior (considerando que puede haber fin de semana en medio)
+        const diffDays = Math.floor(
+          (currentDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (diffDays <= 3) {
+          // 3 días máximo (viernes -> lunes)
+          currentSubSegmentEnd = currentDay;
+        } else {
+          // Guardar el subsegmento actual y empezar uno nuevo
+          const startCol = (getDay(currentSubSegmentStart) + 6) % 7; // convertir dom=0 a lun=0
+          const endCol = (getDay(currentSubSegmentEnd) + 6) % 7;
+          const span = endCol - startCol + 1;
+
+          segments.push({
+            vacation,
+            person,
+            startCol,
+            span,
+            weekStart,
+          });
+
+          currentSubSegmentStart = currentDay;
+          currentSubSegmentEnd = currentDay;
+        }
+      }
+
+      // Agregar el último subsegmento
+      const startCol = (getDay(currentSubSegmentStart) + 6) % 7;
+      const endCol = (getDay(currentSubSegmentEnd) + 6) % 7;
+      const span = endCol - startCol + 1;
+
+      segments.push({
+        vacation,
+        person,
+        startCol,
+        span,
+        weekStart,
+      });
+    }
+
+    return assignRows(segments);
   }
 
   function previousMonth() {
@@ -128,38 +265,49 @@
       {/each}
     </div>
 
-    <!-- Calendar days -->
-    <div class="grid grid-cols-7">
-      {#each calendarDays() as day}
-        {@const dayVacations = getVacationsForDay(day)}
-        {@const isToday = isSameDay(day, new Date())}
-        {@const isCurrentMonth = isSameMonth(day, currentDate)}
-        <div
-          class="min-h-24 p-2 border-b border-r border-gray-200 {isCurrentMonth
-            ? 'bg-white'
-            : 'bg-gray-50'} {isToday ? 'ring-2 ring-blue-500' : ''}"
-        >
-          <div class="text-sm font-medium {isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}">
-            {format(day, 'd')}
-          </div>
-          <div class="mt-1 space-y-1">
-            {#each dayVacations as vacation}
-              {@const person = getPersonById(vacation.personId)}
-              {#if person}
-                <div
-                  class="text-xs px-1 py-0.5 rounded text-white truncate {getPersonColor(
-                    vacation.personId
-                  )}"
-                  title="{person.name} - {vacation.status}"
-                >
-                  {person.name.split(' ')[0]}
-                </div>
-              {/if}
+    <!-- Calendar weeks -->
+    {#each calendarWeeks() as week}
+      {@const segments = getVacationSegments(week)}
+      <div class="relative">
+        <!-- Days row -->
+        <div class="grid grid-cols-7">
+          {#each week as day}
+            {@const isToday = isSameDay(day, new Date())}
+            {@const isCurrentMonth = isSameMonth(day, currentDate)}
+            {@const isWeekendDay = isWeekend(day)}
+            <div
+              class="h-24 p-2 border-b border-r border-gray-200 {isCurrentMonth
+                ? isWeekendDay
+                  ? 'bg-gray-100'
+                  : 'bg-white'
+                : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
+            >
+              <div class="text-sm font-medium {isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}">
+                {format(day, 'd')}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <!-- Vacation bars overlay -->
+        <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
+          <div class="grid grid-cols-7 h-full gap-0 p-2">
+            {#each segments as segment}
+              <div
+                class="pointer-events-auto text-xs px-2 py-1 rounded text-white truncate {getPersonColor(
+                  segment.person.id
+                )} mt-6"
+                style="grid-column: {segment.startCol +
+                  1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1};"
+                title="{segment.person.name} - {segment.vacation.status}"
+              >
+                {segment.person.name.split(' ')[0]}
+              </div>
             {/each}
           </div>
         </div>
-      {/each}
-    </div>
+      </div>
+    {/each}
   </div>
 
   <!-- Summary -->
