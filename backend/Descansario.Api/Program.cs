@@ -3,6 +3,7 @@ using Descansario.Api.Data;
 using Descansario.Api.Models;
 using Descansario.Api.DTOs;
 using Descansario.Api.Helpers;
+using Descansario.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,9 @@ builder.Services.AddSwaggerGen();
 // Database
 builder.Services.AddDbContext<DescansarioDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Business Services
+builder.Services.AddScoped<WorkingDaysCalculator>();
 
 // CORS para desarrollo
 builder.Services.AddCors(options =>
