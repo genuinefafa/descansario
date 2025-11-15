@@ -14,11 +14,18 @@
 
   type Tab = 'persons' | 'vacations' | 'calendar';
 
-  // Read tab from URL query param
-  const urlTab = $derived(($page.url.searchParams.get('tab') as Tab) || 'persons');
-  let activeTab = $state<Tab>(urlTab);
+  // Initialize tab from URL (runs once on mount)
+  function getInitialTab(): Tab {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      return (urlParams.get('tab') as Tab) || 'persons';
+    }
+    return 'persons';
+  }
 
-  // Sync activeTab with URL
+  let activeTab = $state<Tab>(getInitialTab());
+
+  // Sync activeTab with URL changes
   $effect(() => {
     const tab = ($page.url.searchParams.get('tab') as Tab) || 'persons';
     if (tab !== activeTab) {
