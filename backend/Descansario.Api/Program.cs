@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Descansario.Api.Data;
 using Descansario.Api.Models;
 using Descansario.Api.DTOs;
+using Descansario.Api.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -98,6 +99,13 @@ app.MapGet("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =>
 // POST /api/persons - Crear una nueva persona
 app.MapPost("/api/persons", async (CreatePersonDto dto, DescansarioDbContext db) =>
 {
+    // Validar entrada
+    var (isValid, errorMessage) = ValidationHelper.ValidatePersonDto(dto.Name, dto.Email, dto.AvailableDays);
+    if (!isValid)
+    {
+        return Results.BadRequest(new { message = errorMessage });
+    }
+
     // Validar que el email no exista
     if (await db.Persons.AnyAsync(p => p.Email == dto.Email))
     {
@@ -112,7 +120,15 @@ app.MapPost("/api/persons", async (CreatePersonDto dto, DescansarioDbContext db)
     };
 
     db.Persons.Add(person);
-    await db.SaveChangesAsync();
+
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateException)
+    {
+        return Results.BadRequest(new { message = "Error al guardar: posible email duplicado" });
+    }
 
     var personDto = new PersonDto
     {
@@ -130,6 +146,13 @@ app.MapPost("/api/persons", async (CreatePersonDto dto, DescansarioDbContext db)
 // PUT /api/persons/{id} - Actualizar una persona
 app.MapPut("/api/persons/{id:int}", async (int id, UpdatePersonDto dto, DescansarioDbContext db) =>
 {
+    // Validar entrada
+    var (isValid, errorMessage) = ValidationHelper.ValidatePersonDto(dto.Name, dto.Email, dto.AvailableDays);
+    if (!isValid)
+    {
+        return Results.BadRequest(new { message = errorMessage });
+    }
+
     var person = await db.Persons.FindAsync(id);
 
     if (person == null)
@@ -145,7 +168,14 @@ app.MapPut("/api/persons/{id:int}", async (int id, UpdatePersonDto dto, Descansa
     person.Email = dto.Email;
     person.AvailableDays = dto.AvailableDays;
 
-    await db.SaveChangesAsync();
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateException)
+    {
+        return Results.BadRequest(new { message = "Error al actualizar: posible email duplicado" });
+    }
 
     var personDto = new PersonDto
     {
@@ -171,7 +201,7 @@ app.MapDelete("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =
     db.Persons.Remove(person);
     await db.SaveChangesAsync();
 
-    return Results.NoContent();
+    return Results.Ok(new { message = "Persona eliminada correctamente" });
 })
 .WithName("DeletePerson")
 .WithTags("Persons");
