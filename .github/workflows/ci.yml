@@ -1,0 +1,74 @@
+name: CI - Build Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend Build (.NET 8)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      working-directory: ./backend/Descansario.Api
+      run: dotnet restore
+
+    - name: Build
+      working-directory: ./backend/Descansario.Api
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Check for build warnings
+      working-directory: ./backend/Descansario.Api
+      run: dotnet build --configuration Release --no-restore --warnaserror
+
+  frontend:
+    name: Frontend Build (SvelteKit)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Type check
+      working-directory: ./frontend
+      run: npm run check
+
+    - name: Build
+      working-directory: ./frontend
+      run: npm run build
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build backend image
+      run: docker build -t descansario-api:test ./backend
+
+    - name: Build frontend image
+      run: docker build -t descansario-web:test ./frontend
