@@ -42,10 +42,20 @@
   const today = new Date();
   let months = $state<Date[]>([]);
   let scrollContainer: HTMLDivElement;
-  let currentMonthRef: HTMLDivElement;
+  let currentMonthRef: HTMLDivElement | null = null;
   let topSentinel: HTMLDivElement;
   let bottomSentinel: HTMLDivElement;
   let hasScrolledToToday = false;
+
+  // Action to capture the current month ref
+  function captureCurrentMonthRef(node: HTMLDivElement, isCurrentMonth: boolean) {
+    if (isCurrentMonth) {
+      currentMonthRef = node;
+    }
+    return {
+      destroy() {},
+    };
+  }
 
   // Initialize with current month and buffer
   function initializeMonths() {
@@ -352,7 +362,7 @@
     {#each months as monthDate, i}
       {@const isCurrentMonth = isSameMonth(monthDate, today)}
       <div
-        bind:this={isCurrentMonth ? currentMonthRef : undefined}
+        use:captureCurrentMonthRef={isCurrentMonth}
         class="mb-8 {isCurrentMonth ? 'scroll-mt-4' : ''}"
       >
         <!-- Month header -->
