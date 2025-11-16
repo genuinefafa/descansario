@@ -47,20 +47,42 @@
   const today = new Date();
   let months = $state<Date[]>([]);
   let allWeeks = $derived(generateAllWeeks());
-  let scrollContainer: HTMLDivElement;
   let currentWeekRef: HTMLTableRowElement | null = null;
-  let topSentinel: HTMLDivElement;
   let bottomSentinel: HTMLDivElement;
   let hasScrolledToToday = false;
 
-  // Initialize with current month and buffer
+  // Initialize with current year from January onwards
   function initializeMonths() {
     const monthsList: Date[] = [];
-    // 2 months before, current month, 3 months after
-    for (let i = -2; i <= 3; i++) {
-      monthsList.push(addMonths(startOfMonth(today), i));
+    const currentYear = today.getFullYear();
+    const januaryThisYear = new Date(currentYear, 0, 1); // January 1st
+
+    // From January this year to 3 months in the future
+    let currentMonth = startOfMonth(januaryThisYear);
+    const endMonth = addMonths(today, 3);
+
+    while (currentMonth <= endMonth) {
+      monthsList.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
     }
+
     months = monthsList;
+  }
+
+  // Load previous months (manually triggered)
+  function loadPreviousYear() {
+    const firstMonth = months[0];
+    const previousYear = new Date(firstMonth.getFullYear() - 1, 0, 1); // January of previous year
+
+    const newMonths: Date[] = [];
+    let currentMonth = startOfMonth(previousYear);
+
+    while (currentMonth < firstMonth) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+
+    months = [...newMonths, ...months];
   }
 
   // Generate all weeks from all months as a flat array
@@ -289,25 +311,7 @@
     return assignRows(segments);
   }
 
-  // Add months to the beginning
-  function loadPreviousMonths() {
-    const firstMonth = months[0];
-    const twoYearsAgo = subMonths(today, 24);
-
-    // Limit to 2 years in the past
-    if (firstMonth <= twoYearsAgo) return;
-
-    const newMonths: Date[] = [];
-    for (let i = 3; i > 0; i--) {
-      const newMonth = subMonths(firstMonth, i);
-      if (newMonth >= twoYearsAgo) {
-        newMonths.push(newMonth);
-      }
-    }
-    months = [...newMonths, ...months];
-  }
-
-  // Add months to the end
+  // Add months to the end (auto-triggered)
   function loadNextMonths() {
     const lastMonth = months[months.length - 1];
     const twoYearsFromNow = addMonths(today, 24);
@@ -316,7 +320,7 @@
     if (lastMonth >= twoYearsFromNow) return;
 
     const newMonths: Date[] = [];
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 6; i++) {
       const newMonth = addMonths(lastMonth, i);
       if (newMonth <= twoYearsFromNow) {
         newMonths.push(newMonth);
@@ -326,42 +330,41 @@
   }
 
   function goToToday() {
-    if (currentWeekRef) {
-      currentWeekRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    const anchor = `#${format(today, 'MMMM-yyyy', { locale: es })}`;
+    window.location.hash = anchor;
   }
 
-  // Setup infinite scroll
+  // Generate month anchor ID
+  function getMonthAnchor(monthDate: Date): string {
+    return format(monthDate, 'MMMM-yyyy', { locale: es });
+  }
+
+  // Setup infinite scroll (only for bottom)
   onMount(() => {
     initializeMonths();
 
-    // Setup IntersectionObserver for infinite scroll
+    // Setup IntersectionObserver for infinite scroll forward
     const options = {
-      root: scrollContainer,
+      root: null, // Use viewport instead of container
       rootMargin: '400px',
       threshold: 0,
     };
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          if (entry.target === topSentinel) {
-            loadPreviousMonths();
-          } else if (entry.target === bottomSentinel) {
-            loadNextMonths();
-          }
+        if (entry.isIntersecting && entry.target === bottomSentinel) {
+          loadNextMonths();
         }
       });
     }, options);
 
     // Wait for next tick to ensure sentinels are rendered
     setTimeout(() => {
-      if (topSentinel) observer.observe(topSentinel);
       if (bottomSentinel) observer.observe(bottomSentinel);
 
-      // Scroll to current week
-      if (currentWeekRef && !hasScrolledToToday) {
-        currentWeekRef.scrollIntoView({ behavior: 'instant', block: 'center' });
+      // Auto-scroll to today's month using anchor
+      if (!hasScrolledToToday) {
+        goToToday();
         hasScrolledToToday = true;
       }
     }, 100);
@@ -396,10 +399,18 @@
     {/each}
   </div>
 
-  <!-- Scrollable Calendar Container -->
-  <div bind:this={scrollContainer} class="overflow-y-auto max-h-[70vh] border border-gray-200 rounded-lg">
-    <!-- Top sentinel for infinite scroll -->
-    <div bind:this={topSentinel} class="h-1"></div>
+  <!-- Load Previous Year Button -->
+  <div class="mb-4">
+    <button
+      onclick={loadPreviousYear}
+      class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
+    >
+      ↑ Cargar año anterior
+    </button>
+  </div>
+
+  <!-- Calendar Container (using browser scroll) -->
+  <div class="border border-gray-200 rounded-lg">
 
     <!-- Continuous Calendar Table -->
     <table class="w-full border-collapse">
@@ -477,7 +488,9 @@
             <!-- Month label column -->
             {#if weekRow.monthLabel}
               {@const isCurrentMonth = isSameMonth(weekRow.monthLabel.monthDate, today)}
+              {@const monthAnchor = getMonthAnchor(weekRow.monthLabel.monthDate)}
               <td
+                id={monthAnchor}
                 rowspan={weekRow.monthLabel.weeksInMonth}
                 class="border-b border-l border-gray-200 bg-gray-50 text-center align-middle {isCurrentMonth
                   ? 'bg-blue-50'
