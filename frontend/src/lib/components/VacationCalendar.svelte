@@ -38,7 +38,7 @@
 
   interface WeekRow {
     week: Date[];
-    monthLabels: { monthDate: Date; weeksInMonth: number }[];
+    monthLabel?: { monthDate: Date; weeksInMonth: number };
   }
 
   let { vacations, persons }: Props = $props();
@@ -89,30 +89,35 @@
     // Initialize week rows
     const allWeekRows: WeekRow[] = allWeeks.map((week) => ({
       week,
-      monthLabels: [],
+      monthLabel: undefined,
     }));
 
-    // For each month, find which weeks it spans and mark the first week
-    for (const monthDate of months) {
-      const monthWeeks: number[] = []; // indices of weeks that contain this month
+    // Find weeks that contain day 1 of each month
+    const firstDayWeekIndices: number[] = [];
+    allWeeks.forEach((week, weekIndex) => {
+      const hasFirstDay = week.some((day) => day.getDate() === 1);
+      if (hasFirstDay) {
+        // Find which month's day 1 this is
+        const firstDayInWeek = week.find((day) => day.getDate() === 1);
+        if (firstDayInWeek) {
+          firstDayWeekIndices.push(weekIndex);
 
-      // Find all weeks that contain days from this month
-      allWeeks.forEach((week, weekIndex) => {
-        const hasMonthDays = week.some((day) => isSameMonth(day, monthDate));
-        if (hasMonthDays) {
-          monthWeeks.push(weekIndex);
+          // Calculate rowspan: from this week until the week before the next "day 1" week
+          const nextFirstDayIndex = firstDayWeekIndices.length > 0
+            ? allWeeks.findIndex((w, idx) => idx > weekIndex && w.some(d => d.getDate() === 1))
+            : -1;
+
+          const weeksInMonth = nextFirstDayIndex === -1
+            ? allWeeks.length - weekIndex
+            : nextFirstDayIndex - weekIndex;
+
+          allWeekRows[weekIndex].monthLabel = {
+            monthDate: startOfMonth(firstDayInWeek),
+            weeksInMonth,
+          };
         }
-      });
-
-      // Add month label to the first week that contains this month
-      if (monthWeeks.length > 0) {
-        const firstWeekIndex = monthWeeks[0];
-        allWeekRows[firstWeekIndex].monthLabels.push({
-          monthDate,
-          weeksInMonth: monthWeeks.length,
-        });
       }
-    }
+    });
 
     return allWeekRows;
   }
@@ -429,13 +434,13 @@
                     {@const dayMonth = startOfMonth(day)}
                     {@const isDayInVisibleMonths = months.some((m) => isSameMonth(m, dayMonth))}
                     <div
-                      class="h-24 p-1 border-b border-r border-gray-200 {isDayInVisibleMonths
+                      class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth ? 'border-l-2 border-l-gray-900' : ''} {isDayInVisibleMonths
                         ? isWeekendDay
                           ? 'bg-gray-100'
                           : 'bg-white'
                         : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
                     >
-                      <div class="text-xs font-medium {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
+                      <div class="text-xs {isFirstOfMonth ? 'font-bold' : 'font-medium'} {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
                         {#if isFirstOfMonth}
                           {format(day, 'd MMM', { locale: es })}
                         {:else}
@@ -470,19 +475,19 @@
             </td>
 
             <!-- Month label column -->
-            {#each weekRow.monthLabels as monthLabel}
-              {@const isCurrentMonth = isSameMonth(monthLabel.monthDate, today)}
+            {#if weekRow.monthLabel}
+              {@const isCurrentMonth = isSameMonth(weekRow.monthLabel.monthDate, today)}
               <td
-                rowspan={monthLabel.weeksInMonth}
+                rowspan={weekRow.monthLabel.weeksInMonth}
                 class="border-b border-l border-gray-200 bg-gray-50 text-center align-middle {isCurrentMonth
                   ? 'bg-blue-50'
                   : ''}"
               >
                 <div class="writing-mode-vertical text-sm font-bold {isCurrentMonth ? 'text-blue-600' : 'text-gray-700'} capitalize py-2">
-                  {format(monthLabel.monthDate, 'MMMM yyyy', { locale: es })}
+                  {format(weekRow.monthLabel.monthDate, 'MMMM yyyy', { locale: es })}
                 </div>
               </td>
-            {/each}
+            {/if}
           </tr>
         {/each}
       </tbody>
