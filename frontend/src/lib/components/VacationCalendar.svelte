@@ -67,34 +67,61 @@
 
   // Generate all weeks from all months as a flat array
   function generateAllWeeks(): WeekRow[] {
+    if (months.length === 0) return [];
+
     const allWeekRows: WeekRow[] = [];
 
+    // Calculate the full date range
+    const firstMonth = months[0];
+    const lastMonth = months[months.length - 1];
+    const rangeStart = startOfWeek(startOfMonth(firstMonth), { weekStartsOn: 0 });
+    const rangeEnd = endOfWeek(endOfMonth(lastMonth), { weekStartsOn: 0 });
+
+    // Generate all weeks continuously
+    let currentWeekStart = rangeStart;
+    const allWeeks: Date[][] = [];
+
+    while (currentWeekStart <= rangeEnd) {
+      const week: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        week.push(addDays(currentWeekStart, i));
+      }
+      allWeeks.push(week);
+      currentWeekStart = addDays(currentWeekStart, 7);
+    }
+
+    // Now assign each week to a month and detect first week of month
     for (const monthDate of months) {
       const monthStart = startOfMonth(monthDate);
-      const monthEnd = endOfMonth(monthDate);
-      const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-      const calendarEnd = startOfWeek(endOfWeek(monthEnd, { weekStartsOn: 0 }), { weekStartsOn: 0 });
-
       const monthWeeks: Date[][] = [];
-      let currentWeekStart = calendarStart;
 
-      while (currentWeekStart <= calendarEnd) {
-        const week: Date[] = [];
-        for (let i = 0; i < 7; i++) {
-          week.push(addDays(currentWeekStart, i));
+      // Find all weeks that contain days from this month
+      for (const week of allWeeks) {
+        const hasMonthDays = week.some((day) => isSameMonth(day, monthDate));
+        if (hasMonthDays) {
+          monthWeeks.push(week);
         }
-        monthWeeks.push(week);
-        currentWeekStart = addDays(currentWeekStart, 7);
       }
 
-      // Add weeks with metadata
+      // Mark the first week that contains the 1st day of the month
+      const firstWeekIndex = monthWeeks.findIndex((week) =>
+        week.some((day) => isSameMonth(day, monthDate) && day.getDate() === 1)
+      );
+
+      // Add week rows only for the first occurrence
       monthWeeks.forEach((week, index) => {
-        allWeekRows.push({
-          week,
-          monthDate,
-          isFirstWeekOfMonth: index === 0,
-          weeksInMonth: index === 0 ? monthWeeks.length : undefined,
-        });
+        // Only add if this week hasn't been added yet (check by week start date)
+        const weekStart = week[0];
+        const alreadyAdded = allWeekRows.some((wr) => wr.week[0].getTime() === weekStart.getTime());
+
+        if (!alreadyAdded) {
+          allWeekRows.push({
+            week,
+            monthDate,
+            isFirstWeekOfMonth: index === firstWeekIndex,
+            weeksInMonth: index === firstWeekIndex ? monthWeeks.length : undefined,
+          });
+        }
       });
     }
 
