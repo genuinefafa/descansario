@@ -330,13 +330,16 @@
   }
 
   function goToToday() {
-    const anchor = `#${format(today, 'MMMM-yyyy', { locale: es })}`;
-    window.location.hash = anchor;
+    const anchor = getMonthAnchor(today);
+    const element = document.getElementById(anchor);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
-  // Generate month anchor ID
+  // Generate month anchor ID (formato: mes-año, ej: "noviembre-2025")
   function getMonthAnchor(monthDate: Date): string {
-    return format(monthDate, 'MMMM-yyyy', { locale: es });
+    return format(monthDate, 'MMMM-yyyy', { locale: es }).toLowerCase();
   }
 
   // Setup infinite scroll (only for bottom)
