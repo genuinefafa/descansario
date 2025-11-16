@@ -36,26 +36,24 @@
     row?: number; // fila asignada para evitar superposiciones
   }
 
+  interface WeekRow {
+    week: Date[];
+    monthDate: Date;
+    isFirstWeekOfMonth: boolean;
+    weeksInMonth?: number;
+  }
+
   let { vacations, persons }: Props = $props();
 
   // Infinite scroll state
   const today = new Date();
   let months = $state<Date[]>([]);
+  let allWeeks = $derived(generateAllWeeks());
   let scrollContainer: HTMLDivElement;
-  let currentMonthRef: HTMLDivElement | null = null;
+  let currentWeekRef: HTMLTableRowElement | null = null;
   let topSentinel: HTMLDivElement;
   let bottomSentinel: HTMLDivElement;
   let hasScrolledToToday = false;
-
-  // Action to capture the current month ref
-  function captureCurrentMonthRef(node: HTMLDivElement, isCurrentMonth: boolean) {
-    if (isCurrentMonth) {
-      currentMonthRef = node;
-    }
-    return {
-      destroy() {},
-    };
-  }
 
   // Initialize with current month and buffer
   function initializeMonths() {
@@ -67,26 +65,50 @@
     months = monthsList;
   }
 
-  // Generate weeks for a specific month
-  function getCalendarWeeks(monthDate: Date): Date[][] {
-    const monthStart = startOfMonth(monthDate);
-    const monthEnd = endOfMonth(monthDate);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const calendarEnd = startOfWeek(endOfWeek(monthEnd, { weekStartsOn: 0 }), { weekStartsOn: 0 });
+  // Generate all weeks from all months as a flat array
+  function generateAllWeeks(): WeekRow[] {
+    const allWeekRows: WeekRow[] = [];
 
-    const weeks: Date[][] = [];
-    let currentWeekStart = calendarStart;
+    for (const monthDate of months) {
+      const monthStart = startOfMonth(monthDate);
+      const monthEnd = endOfMonth(monthDate);
+      const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+      const calendarEnd = startOfWeek(endOfWeek(monthEnd, { weekStartsOn: 0 }), { weekStartsOn: 0 });
 
-    while (currentWeekStart <= calendarEnd) {
-      const week: Date[] = [];
-      for (let i = 0; i < 7; i++) {
-        week.push(addDays(currentWeekStart, i));
+      const monthWeeks: Date[][] = [];
+      let currentWeekStart = calendarStart;
+
+      while (currentWeekStart <= calendarEnd) {
+        const week: Date[] = [];
+        for (let i = 0; i < 7; i++) {
+          week.push(addDays(currentWeekStart, i));
+        }
+        monthWeeks.push(week);
+        currentWeekStart = addDays(currentWeekStart, 7);
       }
-      weeks.push(week);
-      currentWeekStart = addDays(currentWeekStart, 7);
+
+      // Add weeks with metadata
+      monthWeeks.forEach((week, index) => {
+        allWeekRows.push({
+          week,
+          monthDate,
+          isFirstWeekOfMonth: index === 0,
+          weeksInMonth: index === 0 ? monthWeeks.length : undefined,
+        });
+      });
     }
 
-    return weeks;
+    return allWeekRows;
+  }
+
+  // Action to capture the current week ref
+  function captureCurrentWeekRef(node: HTMLTableRowElement, containsToday: boolean) {
+    if (containsToday && !currentWeekRef) {
+      currentWeekRef = node;
+    }
+    return {
+      destroy() {},
+    };
   }
 
   function isWeekend(day: Date): boolean {
@@ -283,8 +305,8 @@
   }
 
   function goToToday() {
-    if (currentMonthRef) {
-      currentMonthRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (currentWeekRef) {
+      currentWeekRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
 
@@ -316,9 +338,9 @@
       if (topSentinel) observer.observe(topSentinel);
       if (bottomSentinel) observer.observe(bottomSentinel);
 
-      // Scroll to current month
-      if (currentMonthRef && !hasScrolledToToday) {
-        currentMonthRef.scrollIntoView({ behavior: 'instant', block: 'center' });
+      // Scroll to current week
+      if (currentWeekRef && !hasScrolledToToday) {
+        currentWeekRef.scrollIntoView({ behavior: 'instant', block: 'center' });
         hasScrolledToToday = true;
       }
     }, 100);
@@ -354,91 +376,104 @@
   </div>
 
   <!-- Scrollable Calendar Container -->
-  <div bind:this={scrollContainer} class="overflow-y-auto max-h-[70vh]">
+  <div bind:this={scrollContainer} class="overflow-y-auto max-h-[70vh] border border-gray-200 rounded-lg">
     <!-- Top sentinel for infinite scroll -->
     <div bind:this={topSentinel} class="h-1"></div>
 
-    <!-- Render all months -->
-    {#each months as monthDate, i}
-      {@const isCurrentMonth = isSameMonth(monthDate, today)}
-      <div
-        use:captureCurrentMonthRef={isCurrentMonth}
-        class="mb-8 {isCurrentMonth ? 'scroll-mt-4' : ''}"
-      >
-        <!-- Month header -->
-        <div class="mb-3">
-          <h3
-            class="text-xl font-bold {isCurrentMonth ? 'text-blue-600' : 'text-gray-700'} capitalize"
-          >
-            {format(monthDate, 'MMMM yyyy', { locale: es })}
-          </h3>
-        </div>
+    <!-- Continuous Calendar Table -->
+    <table class="w-full border-collapse">
+      <!-- Day headers - shown once at the top -->
+      <thead class="sticky top-0 bg-gray-50 z-10">
+        <tr>
+          {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
+            <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-gray-200">
+              {day}
+            </th>
+          {/each}
+          <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-l border-gray-200 w-20">
+            Mes
+          </th>
+        </tr>
+      </thead>
 
-        <!-- Calendar Grid -->
-        <div class="border border-gray-200 rounded-lg overflow-hidden">
-          <!-- Day headers -->
-          <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
-            {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
-              <div class="p-2 text-center text-sm font-semibold text-gray-700">
-                {day}
-              </div>
-            {/each}
-          </div>
+      <tbody>
+        {#each allWeeks as weekRow, weekIndex}
+          {@const segments = getVacationSegments(weekRow.week)}
+          {@const containsToday = weekRow.week.some((day) => isSameDay(day, today))}
+          <tr use:captureCurrentWeekRef={containsToday} class="group">
+            <!-- Week days (wrapped in a container with relative positioning) -->
+            {#each weekRow.week as day, dayIndex}
+              {@const isToday = isSameDay(day, today)}
+              {@const isDayInMonth = isSameMonth(day, weekRow.monthDate)}
+              {@const isWeekendDay = isWeekend(day)}
+              {@const isFirstOfMonth = day.getDate() === 1}
+              <td
+                class="h-24 p-1 border-b border-r border-gray-200 {isDayInMonth
+                  ? isWeekendDay
+                    ? 'bg-gray-100'
+                    : 'bg-white'
+                  : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''} {dayIndex === 0 ? 'relative' : ''}"
+              >
+                <div class="text-xs font-medium {isDayInMonth ? 'text-gray-900' : 'text-gray-400'}">
+                  {#if isFirstOfMonth}
+                    {format(day, 'd MMM', { locale: es })}
+                  {:else}
+                    {format(day, 'd')}
+                  {/if}
+                </div>
 
-          <!-- Calendar weeks -->
-          {#each getCalendarWeeks(monthDate) as week}
-            {@const segments = getVacationSegments(week)}
-            <div class="relative">
-              <!-- Days row -->
-              <div class="grid grid-cols-7">
-                {#each week as day}
-                  {@const isToday = isSameDay(day, today)}
-                  {@const isDayInMonth = isSameMonth(day, monthDate)}
-                  {@const isWeekendDay = isWeekend(day)}
-                  <div
-                    class="h-24 p-1 border-b border-r border-gray-200 {isDayInMonth
-                      ? isWeekendDay
-                        ? 'bg-gray-100'
-                        : 'bg-white'
-                      : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
-                  >
-                    <div
-                      class="text-xs font-medium {isDayInMonth ? 'text-gray-900' : 'text-gray-400'}"
-                    >
-                      {format(day, 'd')}
+                <!-- Vacation bars overlay - only on first cell of the row -->
+                {#if dayIndex === 0}
+                  <div class="absolute top-0 left-0 pointer-events-none" style="width: 700%; height: 100%;">
+                    <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
+                      {#each segments as segment}
+                        {@const isPending = segment.vacation.status === 'Pending'}
+                        {@const baseColor = getPersonColorValue(segment.person.id)}
+                        <div
+                          class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
+                            ? ''
+                            : getPersonColor(segment.person.id)}"
+                          style="grid-column: {segment.startCol + 1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
+                            ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
+                            : ''}"
+                          title="{segment.person.name} - {segment.vacation.status}"
+                        >
+                          {segment.person.name.split(' ')[0]}
+                        </div>
+                      {/each}
                     </div>
                   </div>
-                {/each}
-              </div>
+                {/if}
+              </td>
+            {/each}
 
-              <!-- Vacation bars overlay -->
-              <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
-                <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
-                  {#each segments as segment}
-                    {@const isPending = segment.vacation.status === 'Pending'}
-                    {@const baseColor = getPersonColorValue(segment.person.id)}
-                    <div
-                      class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
-                        ? ''
-                        : getPersonColor(segment.person.id)}"
-                      style="grid-column: {segment.startCol +
-                        1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
-                        ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
-                        : ''}"
-                      title="{segment.person.name} - {segment.vacation.status}"
-                    >
-                      {segment.person.name.split(' ')[0]}
-                    </div>
-                  {/each}
+            <!-- Month label column (only on first week of month) -->
+            {#if weekRow.isFirstWeekOfMonth}
+              {@const isCurrentMonth = isSameMonth(weekRow.monthDate, today)}
+              <td
+                rowspan={weekRow.weeksInMonth}
+                class="border-b border-l border-gray-200 bg-gray-50 text-center align-middle {isCurrentMonth
+                  ? 'bg-blue-50'
+                  : ''}"
+              >
+                <div class="writing-mode-vertical text-sm font-bold {isCurrentMonth ? 'text-blue-600' : 'text-gray-700'} capitalize py-2">
+                  {format(weekRow.monthDate, 'MMMM yyyy', { locale: es })}
                 </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/each}
+              </td>
+            {/if}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
 
     <!-- Bottom sentinel for infinite scroll -->
     <div bind:this={bottomSentinel} class="h-1"></div>
   </div>
 </div>
+
+<style>
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+</style>
