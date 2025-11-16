@@ -38,9 +38,7 @@
 
   interface WeekRow {
     week: Date[];
-    monthDate: Date;
-    isFirstWeekOfMonth: boolean;
-    weeksInMonth?: number;
+    monthLabels: { monthDate: Date; weeksInMonth: number }[];
   }
 
   let { vacations, persons }: Props = $props();
@@ -69,8 +67,6 @@
   function generateAllWeeks(): WeekRow[] {
     if (months.length === 0) return [];
 
-    const allWeekRows: WeekRow[] = [];
-
     // Calculate the full date range
     const firstMonth = months[0];
     const lastMonth = months[months.length - 1];
@@ -90,39 +86,32 @@
       currentWeekStart = addDays(currentWeekStart, 7);
     }
 
-    // Now assign each week to a month and detect first week of month
+    // Initialize week rows
+    const allWeekRows: WeekRow[] = allWeeks.map((week) => ({
+      week,
+      monthLabels: [],
+    }));
+
+    // For each month, find which weeks it spans and mark the first week
     for (const monthDate of months) {
-      const monthStart = startOfMonth(monthDate);
-      const monthWeeks: Date[][] = [];
+      const monthWeeks: number[] = []; // indices of weeks that contain this month
 
       // Find all weeks that contain days from this month
-      for (const week of allWeeks) {
+      allWeeks.forEach((week, weekIndex) => {
         const hasMonthDays = week.some((day) => isSameMonth(day, monthDate));
         if (hasMonthDays) {
-          monthWeeks.push(week);
-        }
-      }
-
-      // Mark the first week that contains the 1st day of the month
-      const firstWeekIndex = monthWeeks.findIndex((week) =>
-        week.some((day) => isSameMonth(day, monthDate) && day.getDate() === 1)
-      );
-
-      // Add week rows only for the first occurrence
-      monthWeeks.forEach((week, index) => {
-        // Only add if this week hasn't been added yet (check by week start date)
-        const weekStart = week[0];
-        const alreadyAdded = allWeekRows.some((wr) => wr.week[0].getTime() === weekStart.getTime());
-
-        if (!alreadyAdded) {
-          allWeekRows.push({
-            week,
-            monthDate,
-            isFirstWeekOfMonth: index === firstWeekIndex,
-            weeksInMonth: index === firstWeekIndex ? monthWeeks.length : undefined,
-          });
+          monthWeeks.push(weekIndex);
         }
       });
+
+      // Add month label to the first week that contains this month
+      if (monthWeeks.length > 0) {
+        const firstWeekIndex = monthWeeks[0];
+        allWeekRows[firstWeekIndex].monthLabels.push({
+          monthDate,
+          weeksInMonth: monthWeeks.length,
+        });
+      }
     }
 
     return allWeekRows;
@@ -437,15 +426,16 @@
                     {@const isToday = isSameDay(day, today)}
                     {@const isWeekendDay = isWeekend(day)}
                     {@const isFirstOfMonth = day.getDate() === 1}
-                    {@const isDayInCurrentMonth = isSameMonth(day, weekRow.monthDate)}
+                    {@const dayMonth = startOfMonth(day)}
+                    {@const isDayInVisibleMonths = months.some((m) => isSameMonth(m, dayMonth))}
                     <div
-                      class="h-24 p-1 border-b border-r border-gray-200 {isDayInCurrentMonth
+                      class="h-24 p-1 border-b border-r border-gray-200 {isDayInVisibleMonths
                         ? isWeekendDay
                           ? 'bg-gray-100'
                           : 'bg-white'
                         : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
                     >
-                      <div class="text-xs font-medium {isDayInCurrentMonth ? 'text-gray-900' : 'text-gray-400'}">
+                      <div class="text-xs font-medium {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
                         {#if isFirstOfMonth}
                           {format(day, 'd MMM', { locale: es })}
                         {:else}
@@ -479,23 +469,20 @@
               </div>
             </td>
 
-            <!-- Month label column (only on first week of month) -->
-            {#if weekRow.isFirstWeekOfMonth}
-              {@const isCurrentMonth = isSameMonth(weekRow.monthDate, today)}
+            <!-- Month label column -->
+            {#each weekRow.monthLabels as monthLabel}
+              {@const isCurrentMonth = isSameMonth(monthLabel.monthDate, today)}
               <td
-                rowspan={weekRow.weeksInMonth}
+                rowspan={monthLabel.weeksInMonth}
                 class="border-b border-l border-gray-200 bg-gray-50 text-center align-middle {isCurrentMonth
                   ? 'bg-blue-50'
                   : ''}"
               >
                 <div class="writing-mode-vertical text-sm font-bold {isCurrentMonth ? 'text-blue-600' : 'text-gray-700'} capitalize py-2">
-                  {format(weekRow.monthDate, 'MMMM yyyy', { locale: es })}
+                  {format(monthLabel.monthDate, 'MMMM yyyy', { locale: es })}
                 </div>
               </td>
-            {:else}
-              <!-- Empty cell to maintain 8-column structure when no month label -->
-              <td class="hidden"></td>
-            {/if}
+            {/each}
           </tr>
         {/each}
       </tbody>
