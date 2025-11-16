@@ -427,52 +427,51 @@
         {#each allWeeks as weekRow, weekIndex}
           {@const segments = getVacationSegments(weekRow.week)}
           {@const containsToday = weekRow.week.some((day) => isSameDay(day, today))}
-          <tr use:captureCurrentWeekRef={containsToday} class="group">
-            <!-- Week days (wrapped in a container with relative positioning) -->
+          <tr use:captureCurrentWeekRef={containsToday} class="relative">
+            <!-- Week days -->
             {#each weekRow.week as day, dayIndex}
               {@const isToday = isSameDay(day, today)}
-              {@const isDayInMonth = isSameMonth(day, weekRow.monthDate)}
               {@const isWeekendDay = isWeekend(day)}
               {@const isFirstOfMonth = day.getDate() === 1}
+              {@const dayMonth = startOfMonth(day)}
+              {@const isDayInCurrentMonth = isSameMonth(dayMonth, weekRow.monthDate)}
               <td
-                class="h-24 p-1 border-b border-r border-gray-200 {isDayInMonth
+                class="h-24 p-1 border-b border-r border-gray-200 align-top {isDayInCurrentMonth
                   ? isWeekendDay
                     ? 'bg-gray-100'
                     : 'bg-white'
-                  : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''} {dayIndex === 0 ? 'relative' : ''}"
+                  : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
               >
-                <div class="text-xs font-medium {isDayInMonth ? 'text-gray-900' : 'text-gray-400'}">
+                <div class="text-xs font-medium {isDayInCurrentMonth ? 'text-gray-900' : 'text-gray-400'}">
                   {#if isFirstOfMonth}
                     {format(day, 'd MMM', { locale: es })}
                   {:else}
                     {format(day, 'd')}
                   {/if}
                 </div>
-
-                <!-- Vacation bars overlay - only on first cell of the row -->
-                {#if dayIndex === 0}
-                  <div class="absolute top-0 left-0 pointer-events-none" style="width: 700%; height: 100%;">
-                    <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
-                      {#each segments as segment}
-                        {@const isPending = segment.vacation.status === 'Pending'}
-                        {@const baseColor = getPersonColorValue(segment.person.id)}
-                        <div
-                          class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
-                            ? ''
-                            : getPersonColor(segment.person.id)}"
-                          style="grid-column: {segment.startCol + 1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
-                            ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
-                            : ''}"
-                          title="{segment.person.name} - {segment.vacation.status}"
-                        >
-                          {segment.person.name.split(' ')[0]}
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
               </td>
             {/each}
+
+            <!-- Vacation bars overlay for the entire row -->
+            <td class="absolute top-0 left-0 pointer-events-none" style="width: calc(100% / 8 * 7); height: 100%;">
+              <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
+                {#each segments as segment}
+                  {@const isPending = segment.vacation.status === 'Pending'}
+                  {@const baseColor = getPersonColorValue(segment.person.id)}
+                  <div
+                    class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
+                      ? ''
+                      : getPersonColor(segment.person.id)}"
+                    style="grid-column: {segment.startCol + 1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
+                      ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
+                      : ''}"
+                    title="{segment.person.name} - {segment.vacation.status}"
+                  >
+                    {segment.person.name.split(' ')[0]}
+                  </div>
+                {/each}
+              </div>
+            </td>
 
             <!-- Month label column (only on first week of month) -->
             {#if weekRow.isFirstWeekOfMonth}
