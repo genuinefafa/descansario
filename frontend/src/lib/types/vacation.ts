@@ -12,6 +12,7 @@ export interface CreateVacationDto {
   personId: number;
   startDate: string; // ISO date string
   endDate: string; // ISO date string
+  status?: 'Pending' | 'Approved' | 'Rejected';
 }
 
 export interface UpdateVacationDto {

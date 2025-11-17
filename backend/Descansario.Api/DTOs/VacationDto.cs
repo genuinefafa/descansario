@@ -16,6 +16,7 @@ public record CreateVacationDto
     public int PersonId { get; init; }
     public DateTime StartDate { get; init; }
     public DateTime EndDate { get; init; }
+    public string? Status { get; init; }
 }
 
 public record UpdateVacationDto

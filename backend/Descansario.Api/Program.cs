@@ -304,13 +304,20 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
     // Calcular días hábiles
     var workingDays = await calculator.CalculateWorkingDaysAsync(dto.StartDate, dto.EndDate);
 
+    // Parsear el status del DTO o usar Pending por defecto
+    var status = VacationStatus.Pending;
+    if (!string.IsNullOrEmpty(dto.Status) && Enum.TryParse<VacationStatus>(dto.Status, out var parsedStatus))
+    {
+        status = parsedStatus;
+    }
+
     var vacation = new Vacation
     {
         PersonId = dto.PersonId,
         StartDate = dto.StartDate,
         EndDate = dto.EndDate,
         WorkingDaysCount = workingDays,
-        Status = VacationStatus.Pending
+        Status = status
     };
 
     db.Vacations.Add(vacation);
