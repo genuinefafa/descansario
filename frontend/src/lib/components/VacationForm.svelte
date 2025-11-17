@@ -33,8 +33,8 @@
   let holidaysInRange = $derived(() => {
     if (!startDate || !endDate) return [];
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseISO(startDate + 'T00:00:00');
+    const end = parseISO(endDate + 'T23:59:59');
 
     return holidays.filter(h => {
       const holidayDate = parseISO(h.date);
@@ -46,8 +46,8 @@
   let estimatedWorkingDays = $derived(() => {
     if (!startDate || !endDate) return 0;
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseISO(startDate + 'T00:00:00');
+    const end = parseISO(endDate + 'T23:59:59');
     const allDays = eachDayOfInterval({ start, end });
 
     // Contar días que NO son weekend ni feriados
