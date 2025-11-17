@@ -111,6 +111,7 @@ Aplicación web para gestionar y visualizar vacaciones de equipos, con calendari
   endDate: Date
   workingDaysCount: number  // calculado automáticamente
   status: 'pending' | 'approved' | 'rejected'
+  notes?: string  // notas adicionales (soporte Markdown)
 }
 ```
 
