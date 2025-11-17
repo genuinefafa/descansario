@@ -268,15 +268,20 @@
         const prevDay = workDays[i - 1];
         const currentDay = workDays[i];
 
-        // Si el día actual es consecutivo al anterior (considerando que puede haber fin de semana en medio)
-        const diffDays = Math.floor(
-          (currentDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24)
-        );
+        // Verificar que TODOS los días intermedios sean weekends (no feriados)
+        const daysBetween = eachDayOfInterval({
+          start: addDays(prevDay, 1),
+          end: addDays(currentDay, -1)
+        });
 
-        if (diffDays <= 3) {
-          // 3 días máximo (viernes -> lunes)
+        // Solo continuar el segmento si los días intermedios son SOLO weekends
+        const allIntermediateAreWeekends = daysBetween.every(day => isWeekend(day));
+
+        if (allIntermediateAreWeekends) {
+          // Continuar el segmento (solo hay weekends en medio)
           currentSubSegmentEnd = currentDay;
         } else {
+          // Hay algo más que weekends en medio (probablemente un feriado)
           // Guardar el subsegmento actual y empezar uno nuevo
           const startCol = getDay(currentSubSegmentStart); // dom=0, lun=1, ..., sáb=6
           const endCol = getDay(currentSubSegmentEnd);
