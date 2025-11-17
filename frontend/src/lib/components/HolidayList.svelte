@@ -185,15 +185,7 @@
 						id="json-content"
 						bind:value={jsonContent}
 						rows="15"
-						placeholder='Pega aquí el JSON de feriados...
-
-Ejemplo:
-[
-  {
-    "fecha": "2025-01-01",
-    "nombre": "Año Nuevo"
-  }
-]'
+						placeholder="Pega aquí el JSON de feriados..."
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
 					></textarea>
 					<p class="text-xs text-gray-500 mt-1">
