@@ -10,7 +10,7 @@
 
 	let { holiday = null, onSubmit, onCancel }: Props = $props();
 
-	let date = $state(holiday?.date || format(new Date(), 'yyyy-MM-dd'));
+	let date = $state(holiday?.date.split('T')[0] || format(new Date(), 'yyyy-MM-dd'));
 	let name = $state(holiday?.name || '');
 	let country = $state<Country>(holiday?.country || 'AR');
 	let region = $state(holiday?.region || '');
@@ -43,7 +43,7 @@
 
 	$effect(() => {
 		if (holiday) {
-			date = holiday.date;
+			date = holiday.date.split('T')[0];
 			name = holiday.name;
 			country = holiday.country;
 			region = holiday.region || '';
@@ -75,6 +75,7 @@
 				type="date"
 				bind:value={date}
 				required
+				autofocus
 				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>
 		</div>
