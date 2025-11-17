@@ -268,7 +268,18 @@
         const prevDay = workDays[i - 1];
         const currentDay = workDays[i];
 
-        // Verificar que TODOS los días intermedios sean weekends (no feriados)
+        // Calcular diferencia en días
+        const diffInDays = Math.floor(
+          (currentDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        // Si son días consecutivos (diff = 1), continuar el segmento
+        if (diffInDays === 1) {
+          currentSubSegmentEnd = currentDay;
+          continue;
+        }
+
+        // Si hay días en medio, verificar que TODOS sean weekends (no feriados)
         const daysBetween = eachDayOfInterval({
           start: addDays(prevDay, 1),
           end: addDays(currentDay, -1)
