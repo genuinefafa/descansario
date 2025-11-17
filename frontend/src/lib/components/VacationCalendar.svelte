@@ -47,18 +47,14 @@
   const today = new Date();
   let months = $state<Date[]>([]);
   let allWeeks = $derived(generateAllWeeks());
-  let currentWeekRef: HTMLTableRowElement | null = null;
   let bottomSentinel: HTMLDivElement;
-  let hasScrolledToToday = false;
 
-  // Initialize with current year from January onwards
+  // Initialize with current month onwards
   function initializeMonths() {
     const monthsList: Date[] = [];
-    const currentYear = today.getFullYear();
-    const januaryThisYear = new Date(currentYear, 0, 1); // January 1st
 
-    // From January this year to 3 months in the future
-    let currentMonth = startOfMonth(januaryThisYear);
+    // From current month to 3 months in the future
+    let currentMonth = startOfMonth(today);
     const endMonth = addMonths(today, 3);
 
     while (currentMonth <= endMonth) {
@@ -142,16 +138,6 @@
     });
 
     return allWeekRows;
-  }
-
-  // Action to capture the current week ref
-  function captureCurrentWeekRef(node: HTMLTableRowElement, containsToday: boolean) {
-    if (containsToday && !currentWeekRef) {
-      currentWeekRef = node;
-    }
-    return {
-      destroy() {},
-    };
   }
 
   function isWeekend(day: Date): boolean {
@@ -364,12 +350,6 @@
     // Wait for next tick to ensure sentinels are rendered
     setTimeout(() => {
       if (bottomSentinel) observer.observe(bottomSentinel);
-
-      // Auto-scroll to today's month using anchor
-      if (!hasScrolledToToday) {
-        goToToday();
-        hasScrolledToToday = true;
-      }
     }, 100);
 
     return () => {
@@ -434,8 +414,7 @@
       <tbody>
         {#each allWeeks as weekRow, weekIndex}
           {@const segments = getVacationSegments(weekRow.week)}
-          {@const containsToday = weekRow.week.some((day) => isSameDay(day, today))}
-          <tr use:captureCurrentWeekRef={containsToday}>
+          <tr>
             <!-- Wrapper cell for the week -->
             <td colspan="7" class="p-0 relative">
               <div class="relative">
