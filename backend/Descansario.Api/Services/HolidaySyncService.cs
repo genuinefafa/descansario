@@ -106,10 +106,10 @@ public class HolidaySyncService
 
     private async Task<(int added, int updated, List<string> holidayNames)> SyncArgentinaHolidaysFromApiAsync(int year)
     {
-        _logger.LogInformation("Sincronizando feriados de Argentina para el año {Year}", year);
+        _logger.LogInformation("Sincronizando feriados de Argentina desde ArgentinaDatos API para el año {Year}", year);
 
         var client = _httpClientFactory.CreateClient();
-        var url = $"https://nolaborables.com.ar/api/v2/feriados/{year}";
+        var url = $"https://api.argentinadatos.com/v1/feriados/{year}";
 
         try
         {
@@ -173,20 +173,96 @@ public class HolidaySyncService
             await _db.SaveChangesAsync();
 
             _logger.LogInformation(
-                "Sincronización completada: {Added} agregados, {Updated} actualizados",
+                "Sincronización API completada: {Added} agregados, {Updated} actualizados",
                 added, updated);
 
             return (added, updated, holidayNames);
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Error al sincronizar feriados de Argentina");
-            throw new Exception("No se pudo conectar con la API de feriados de Argentina", ex);
+            _logger.LogError(ex, "Error al sincronizar feriados desde API");
+            throw;
         }
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Error al parsear respuesta de API de feriados");
             throw new Exception("Error al procesar datos de feriados", ex);
+        }
+    }
+
+    /// <summary>
+    /// Importa feriados desde un JSON en el formato de ArgentinaDatos
+    /// </summary>
+    public async Task<(int added, int updated, List<string> holidayNames)> ImportHolidaysFromJsonAsync(string jsonContent, Country country)
+    {
+        _logger.LogInformation("Importando feriados desde JSON para {Country}", country);
+
+        try
+        {
+            var holidays = JsonSerializer.Deserialize<List<ArgentinaHolidayDto>>(jsonContent, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (holidays == null || holidays.Count == 0)
+            {
+                throw new Exception("El JSON no contiene feriados válidos");
+            }
+
+            int added = 0;
+            int updated = 0;
+            var holidayNames = new List<string>();
+
+            foreach (var dto in holidays)
+            {
+                // Parsear fecha: formato ISO YYYY-MM-DD
+                if (!DateTime.TryParse(dto.Fecha, out var date))
+                {
+                    _logger.LogWarning("Fecha inválida: {Fecha}", dto.Fecha);
+                    continue;
+                }
+
+                // Buscar si ya existe este feriado
+                var existing = await _db.Holidays
+                    .FirstOrDefaultAsync(h => h.Date == date && h.Country == country);
+
+                if (existing != null)
+                {
+                    // Actualizar si cambió el nombre
+                    if (existing.Name != dto.Nombre)
+                    {
+                        existing.Name = dto.Nombre;
+                        updated++;
+                    }
+                }
+                else
+                {
+                    // Crear nuevo
+                    _db.Holidays.Add(new Holiday
+                    {
+                        Date = date,
+                        Name = dto.Nombre,
+                        Country = country,
+                        Region = null
+                    });
+                    added++;
+                }
+
+                holidayNames.Add(dto.Nombre);
+            }
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Importación JSON completada: {Added} agregados, {Updated} actualizados",
+                added, updated);
+
+            return (added, updated, holidayNames);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Error al parsear JSON de feriados");
+            throw new Exception("El JSON no tiene el formato correcto. Formato esperado: [{\"fecha\": \"YYYY-MM-DD\", \"nombre\": \"...\"}]", ex);
         }
     }
 

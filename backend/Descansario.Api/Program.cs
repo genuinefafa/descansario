@@ -682,4 +682,45 @@ app.MapPost("/api/holidays/sync", async (SyncHolidaysRequest request, HolidaySyn
 .WithName("SyncHolidays")
 .WithTags("Holidays");
 
+// POST /api/holidays/import - Importar feriados desde JSON
+app.MapPost("/api/holidays/import", async (ImportHolidaysRequest request, HolidaySyncService syncService) =>
+{
+    // Validar país
+    if (!Enum.TryParse<Country>(request.Country, true, out var country))
+    {
+        return Results.BadRequest(new { message = "País inválido. Use 'AR' o 'ES'" });
+    }
+
+    // Validar que el JSON no esté vacío
+    if (string.IsNullOrWhiteSpace(request.JsonContent))
+    {
+        return Results.BadRequest(new { message = "El contenido JSON es requerido" });
+    }
+
+    try
+    {
+        var (added, updated, holidays) = await syncService.ImportHolidaysFromJsonAsync(request.JsonContent, country);
+
+        var response = new SyncHolidaysResponse
+        {
+            Added = added,
+            Updated = updated,
+            Total = holidays.Count,
+            Holidays = holidays
+        };
+
+        return Results.Ok(response);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            detail: ex.Message,
+            statusCode: 500,
+            title: "Error al importar feriados"
+        );
+    }
+})
+.WithName("ImportHolidays")
+.WithTags("Holidays");
+
 app.Run();

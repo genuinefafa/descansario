@@ -266,6 +266,25 @@
     }
   }
 
+  async function handleHolidayImport(jsonContent: string) {
+    try {
+      isSyncing = true; // Reusar el mismo flag para simplificar
+      error = '';
+      const response = await holidaysService.import({ jsonContent, country: 'AR' });
+      await loadHolidays();
+
+      // Mostrar mensaje de éxito
+      const message = `Importación completada: ${response.added} agregados, ${response.updated} actualizados (${response.total} total)`;
+      alert(message);
+    } catch (err) {
+      error = 'Error al importar feriados';
+      console.error(err);
+      throw err; // Re-throw para que el componente maneje el error
+    } finally {
+      isSyncing = false;
+    }
+  }
+
   function openNewHolidayForm() {
     editingHoliday = null;
     showHolidayForm = true;
@@ -423,6 +442,7 @@
               onEdit={handleHolidayEdit}
               onDelete={handleHolidayDelete}
               onSync={handleHolidaySync}
+              onImport={handleHolidayImport}
               {isSyncing}
             />
           {/if}

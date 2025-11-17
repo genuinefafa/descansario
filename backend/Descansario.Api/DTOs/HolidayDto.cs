@@ -40,3 +40,9 @@ public record SyncHolidaysResponse
     public required int Total { get; init; }
     public required List<string> Holidays { get; init; }
 }
+
+public record ImportHolidaysRequest
+{
+    public required string JsonContent { get; init; }
+    public required string Country { get; init; }
+}

@@ -8,13 +8,17 @@
 		onEdit: (holiday: Holiday) => void;
 		onDelete: (id: number) => void;
 		onSync?: (year: number) => Promise<void>;
+		onImport?: (jsonContent: string) => Promise<void>;
 		isSyncing?: boolean;
 	}
 
-	let { holidays, onEdit, onDelete, onSync, isSyncing = false }: Props = $props();
+	let { holidays, onEdit, onDelete, onSync, onImport, isSyncing = false }: Props = $props();
 
 	let selectedYear = $state(new Date().getFullYear());
 	let showSyncDialog = $state(false);
+	let showImportDialog = $state(false);
+	let jsonContent = $state('');
+	let isImporting = $state(false);
 
 	function formatDate(dateStr: string): string {
 		try {
@@ -35,6 +39,19 @@
 		}
 	}
 
+	async function handleImport() {
+		if (onImport && jsonContent.trim()) {
+			isImporting = true;
+			try {
+				await onImport(jsonContent);
+				showImportDialog = false;
+				jsonContent = '';
+			} finally {
+				isImporting = false;
+			}
+		}
+	}
+
 	// Agrupar feriados por año
 	let holidaysByYear = $derived(() => {
 		const grouped = new Map<number, Holiday[]>();
@@ -51,22 +68,35 @@
 </script>
 
 <div class="space-y-4">
-	<!-- Botón de sincronización -->
-	{#if onSync}
+	<!-- Botones de acción -->
+	{#if onSync || onImport}
 		<div class="flex justify-between items-center">
 			<h2 class="text-xl font-semibold">Feriados</h2>
-			<button
-				onclick={() => (showSyncDialog = true)}
-				disabled={isSyncing}
-				class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-			>
-				{#if isSyncing}
-					<span class="animate-spin">⟳</span>
-					Sincronizando...
-				{:else}
-					🔄 Sincronizar Feriados
+			<div class="flex gap-2">
+				{#if onImport}
+					<button
+						onclick={() => (showImportDialog = true)}
+						disabled={isImporting || isSyncing}
+						class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+					>
+						📋 Importar JSON
+					</button>
 				{/if}
-			</button>
+				{#if onSync}
+					<button
+						onclick={() => (showSyncDialog = true)}
+						disabled={isSyncing || isImporting}
+						class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+					>
+						{#if isSyncing}
+							<span class="animate-spin">⟳</span>
+							Sincronizando...
+						{:else}
+							🔄 Sincronizar API
+						{/if}
+					</button>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -112,6 +142,82 @@
 						class="px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
 					>
 						{isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Dialog de importación JSON -->
+	{#if showImportDialog}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+			onclick={(e) => e.target === e.currentTarget && (showImportDialog = false)}
+		>
+			<div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+				<h3 class="text-lg font-semibold mb-4">Importar Feriados desde JSON</h3>
+
+				<div class="bg-blue-50 border border-blue-200 p-3 rounded mb-4">
+					<p class="text-sm text-blue-800">
+						<strong>Formato esperado:</strong> Pega aquí el JSON desde
+						<a
+							href="https://api.argentinadatos.com/v1/feriados/2025"
+							target="_blank"
+							class="underline hover:text-blue-900"
+						>
+							ArgentinaDatos API
+						</a>
+					</p>
+					<pre class="text-xs text-blue-700 mt-2 overflow-x-auto">
+[{'{'}
+  "fecha": "2025-01-01",
+  "nombre": "Año Nuevo"
+{'}'}]</pre>
+				</div>
+
+				<div class="mb-4">
+					<label for="json-content" class="block text-sm font-medium text-gray-700 mb-1">
+						Contenido JSON
+					</label>
+					<textarea
+						id="json-content"
+						bind:value={jsonContent}
+						rows="15"
+						placeholder='Pega aquí el JSON de feriados...
+
+Ejemplo:
+[
+  {
+    "fecha": "2025-01-01",
+    "nombre": "Año Nuevo"
+  }
+]'
+						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
+					></textarea>
+					<p class="text-xs text-gray-500 mt-1">
+						{jsonContent.trim() ? `${jsonContent.length} caracteres` : 'Esperando JSON...'}
+					</p>
+				</div>
+
+				<div class="flex gap-2 justify-end">
+					<button
+						onclick={() => {
+							showImportDialog = false;
+							jsonContent = '';
+						}}
+						disabled={isImporting}
+						class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+					>
+						Cancelar
+					</button>
+					<button
+						onclick={handleImport}
+						disabled={isImporting || !jsonContent.trim()}
+						class="px-4 py-2 text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50"
+					>
+						{isImporting ? 'Importando...' : 'Importar'}
 					</button>
 				</div>
 			</div>

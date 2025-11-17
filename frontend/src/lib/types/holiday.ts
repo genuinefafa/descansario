@@ -33,3 +33,8 @@ export interface SyncHolidaysResponse {
 	total: number;
 	holidays: string[];
 }
+
+export interface ImportHolidaysRequest {
+	jsonContent: string;
+	country: Country;
+}

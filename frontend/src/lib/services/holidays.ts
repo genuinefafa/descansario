@@ -5,6 +5,7 @@ import type {
 	UpdateHolidayDto,
 	SyncHolidaysRequest,
 	SyncHolidaysResponse,
+	ImportHolidaysRequest,
 	Country
 } from '$lib/types/holiday';
 
@@ -43,5 +44,10 @@ export const holidaysService = {
 	// Sincronizar feriados desde API externa
 	async sync(request: SyncHolidaysRequest): Promise<SyncHolidaysResponse> {
 		return api.post<SyncHolidaysResponse>('/api/holidays/sync', request);
+	},
+
+	// Importar feriados desde JSON
+	async import(request: ImportHolidaysRequest): Promise<SyncHolidaysResponse> {
+		return api.post<SyncHolidaysResponse>('/api/holidays/import', request);
 	}
 };
