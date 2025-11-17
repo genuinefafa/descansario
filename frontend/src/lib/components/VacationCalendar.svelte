@@ -18,6 +18,7 @@
     eachDayOfInterval,
   } from 'date-fns';
   import { es } from 'date-fns/locale';
+  import { onMount } from 'svelte';
   import type { Vacation } from '$lib/types/vacation';
   import type { Person } from '$lib/types/person';
 
@@ -35,30 +36,109 @@
     row?: number; // fila asignada para evitar superposiciones
   }
 
+  interface WeekRow {
+    week: Date[];
+    monthLabel?: { monthDate: Date; weeksInMonth: number };
+  }
+
   let { vacations, persons }: Props = $props();
 
-  let currentDate = $state(new Date());
-  const monthStart = $derived(startOfMonth(currentDate));
-  const monthEnd = $derived(endOfMonth(currentDate));
-  const calendarStart = $derived(startOfWeek(monthStart, { weekStartsOn: 0 }));
-  const calendarEnd = $derived(endOfWeek(monthEnd, { weekStartsOn: 0 }));
+  // Infinite scroll state
+  const today = new Date();
+  let months = $state<Date[]>([]);
+  let allWeeks = $derived(generateAllWeeks());
+  let bottomSentinel: HTMLDivElement;
 
-  // Organizar días en semanas
-  const calendarWeeks = $derived(() => {
-    const weeks: Date[][] = [];
-    let currentWeekStart = calendarStart;
+  // Initialize with current month onwards
+  function initializeMonths() {
+    const monthsList: Date[] = [];
 
-    while (currentWeekStart <= calendarEnd) {
+    // From current month to 3 months in the future
+    let currentMonth = startOfMonth(today);
+    const endMonth = addMonths(today, 3);
+
+    while (currentMonth <= endMonth) {
+      monthsList.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+
+    months = monthsList;
+  }
+
+  // Load previous months (manually triggered)
+  function loadPreviousYear() {
+    const firstMonth = months[0];
+    const previousYear = new Date(firstMonth.getFullYear() - 1, 0, 1); // January of previous year
+
+    const newMonths: Date[] = [];
+    let currentMonth = startOfMonth(previousYear);
+
+    while (currentMonth < firstMonth) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+
+    months = [...newMonths, ...months];
+  }
+
+  // Generate all weeks from all months as a flat array
+  function generateAllWeeks(): WeekRow[] {
+    if (months.length === 0) return [];
+
+    // Calculate the full date range
+    const firstMonth = months[0];
+    const lastMonth = months[months.length - 1];
+    const rangeStart = startOfWeek(startOfMonth(firstMonth), { weekStartsOn: 0 });
+    const rangeEnd = endOfWeek(endOfMonth(lastMonth), { weekStartsOn: 0 });
+
+    // Generate all weeks continuously
+    let currentWeekStart = rangeStart;
+    const allWeeks: Date[][] = [];
+
+    while (currentWeekStart <= rangeEnd) {
       const week: Date[] = [];
       for (let i = 0; i < 7; i++) {
         week.push(addDays(currentWeekStart, i));
       }
-      weeks.push(week);
+      allWeeks.push(week);
       currentWeekStart = addDays(currentWeekStart, 7);
     }
 
-    return weeks;
-  });
+    // Initialize week rows
+    const allWeekRows: WeekRow[] = allWeeks.map((week) => ({
+      week,
+      monthLabel: undefined,
+    }));
+
+    // Find weeks that contain day 1 of each month
+    const firstDayWeekIndices: number[] = [];
+    allWeeks.forEach((week, weekIndex) => {
+      const hasFirstDay = week.some((day) => day.getDate() === 1);
+      if (hasFirstDay) {
+        // Find which month's day 1 this is
+        const firstDayInWeek = week.find((day) => day.getDate() === 1);
+        if (firstDayInWeek) {
+          firstDayWeekIndices.push(weekIndex);
+
+          // Calculate rowspan: from this week until the week before the next "day 1" week
+          const nextFirstDayIndex = firstDayWeekIndices.length > 0
+            ? allWeeks.findIndex((w, idx) => idx > weekIndex && w.some(d => d.getDate() === 1))
+            : -1;
+
+          const weeksInMonth = nextFirstDayIndex === -1
+            ? allWeeks.length - weekIndex
+            : nextFirstDayIndex - weekIndex;
+
+          allWeekRows[weekIndex].monthLabel = {
+            monthDate: startOfMonth(firstDayInWeek),
+            weeksInMonth,
+          };
+        }
+      }
+    });
+
+    return allWeekRows;
+  }
 
   function isWeekend(day: Date): boolean {
     const dayOfWeek = getDay(day);
@@ -217,43 +297,77 @@
     return assignRows(segments);
   }
 
-  function previousMonth() {
-    currentDate = subMonths(currentDate, 1);
-  }
+  // Add months to the end (auto-triggered)
+  function loadNextMonths() {
+    const lastMonth = months[months.length - 1];
+    const twoYearsFromNow = addMonths(today, 24);
 
-  function nextMonth() {
-    currentDate = addMonths(currentDate, 1);
+    // Limit to 2 years in the future
+    if (lastMonth >= twoYearsFromNow) return;
+
+    const newMonths: Date[] = [];
+    for (let i = 1; i <= 6; i++) {
+      const newMonth = addMonths(lastMonth, i);
+      if (newMonth <= twoYearsFromNow) {
+        newMonths.push(newMonth);
+      }
+    }
+    months = [...months, ...newMonths];
   }
 
   function goToToday() {
-    currentDate = new Date();
+    const anchor = getMonthAnchor(today);
+    const element = document.getElementById(anchor);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
+
+  // Generate month anchor ID (formato: mes-año, ej: "noviembre-2025")
+  function getMonthAnchor(monthDate: Date): string {
+    return format(monthDate, 'MMMM-yyyy', { locale: es }).toLowerCase();
+  }
+
+  // Setup infinite scroll (only for bottom)
+  onMount(() => {
+    initializeMonths();
+
+    // Setup IntersectionObserver for infinite scroll forward
+    const options = {
+      root: null, // Use viewport instead of container
+      rootMargin: '400px',
+      threshold: 0,
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && entry.target === bottomSentinel) {
+          loadNextMonths();
+        }
+      });
+    }, options);
+
+    // Wait for next tick to ensure sentinels are rendered
+    setTimeout(() => {
+      if (bottomSentinel) observer.observe(bottomSentinel);
+    }, 100);
+
+    return () => {
+      observer.disconnect();
+    };
+  });
 </script>
 
 <div class="bg-white rounded-lg shadow-md p-6">
   <!-- Calendar Header -->
   <div class="flex items-center justify-between mb-6">
-    <h2 class="text-2xl font-bold text-gray-900">
-      {format(currentDate, 'MMMM yyyy', { locale: es })}
-    </h2>
+    <h2 class="text-2xl font-bold text-gray-900">Calendario de Vacaciones</h2>
     <div class="flex gap-2">
       <button
-        onclick={previousMonth}
-        class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium"
-      >
-        ← Anterior
-      </button>
-      <button
         onclick={goToToday}
-        class="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-md text-blue-700 font-medium"
+        class="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-md text-blue-700 font-medium"
       >
-        Hoy
-      </button>
-      <button
-        onclick={nextMonth}
-        class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium"
-      >
-        Siguiente →
+        Ir a Hoy
       </button>
     </div>
   </div>
@@ -268,84 +382,120 @@
     {/each}
   </div>
 
-  <!-- Calendar Grid -->
-  <div class="border border-gray-200 rounded-lg overflow-hidden">
-    <!-- Day headers -->
-    <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
-      {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
-        <div class="p-2 text-center text-sm font-semibold text-gray-700">
-          {day}
-        </div>
-      {/each}
-    </div>
-
-    <!-- Calendar weeks -->
-    {#each calendarWeeks() as week}
-      {@const segments = getVacationSegments(week)}
-      <div class="relative">
-        <!-- Days row -->
-        <div class="grid grid-cols-7">
-          {#each week as day}
-            {@const isToday = isSameDay(day, new Date())}
-            {@const isCurrentMonth = isSameMonth(day, currentDate)}
-            {@const isWeekendDay = isWeekend(day)}
-            <div
-              class="h-24 p-1 border-b border-r border-gray-200 {isCurrentMonth
-                ? isWeekendDay
-                  ? 'bg-gray-100'
-                  : 'bg-white'
-                : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
-            >
-              <div class="text-xs font-medium {isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}">
-                {format(day, 'd')}
-              </div>
-            </div>
-          {/each}
-        </div>
-
-        <!-- Vacation bars overlay -->
-        <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
-          <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
-            {#each segments as segment}
-              {@const isPending = segment.vacation.status === 'Pending'}
-              {@const baseColor = getPersonColorValue(segment.person.id)}
-              <div
-                class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
-                  ? ''
-                  : getPersonColor(segment.person.id)}"
-                style="grid-column: {segment.startCol +
-                  1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
-                  ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
-                  : ''}"
-                title="{segment.person.name} - {segment.vacation.status}"
-              >
-                {segment.person.name.split(' ')[0]}
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
-    {/each}
+  <!-- Load Previous Year Button -->
+  <div class="mb-4">
+    <button
+      onclick={loadPreviousYear}
+      class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
+    >
+      ↑ Cargar año anterior
+    </button>
   </div>
 
-  <!-- Summary -->
-  <div class="mt-4 text-sm text-gray-600">
-    {#if vacations.length > 0}
-      <p>
-        Total de vacaciones en {format(currentDate, 'MMMM', { locale: es })}: {vacations.filter(
-          (v) => {
-            const start = parseISO(v.startDate);
-            const end = parseISO(v.endDate);
-            return (
-              isWithinInterval(monthStart, { start, end }) ||
-              isWithinInterval(monthEnd, { start, end }) ||
-              (start <= monthStart && end >= monthEnd)
-            );
-          }
-        ).length}
-      </p>
-    {:else}
-      <p>No hay vacaciones registradas para este mes</p>
-    {/if}
+  <!-- Calendar Container (using browser scroll) -->
+  <div class="border border-gray-200 rounded-lg">
+
+    <!-- Continuous Calendar Table -->
+    <table class="w-full border-collapse">
+      <!-- Day headers - shown once at the top -->
+      <thead class="sticky top-0 bg-gray-50 z-10">
+        <tr>
+          {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
+            <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-gray-200">
+              {day}
+            </th>
+          {/each}
+          <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-l border-gray-200 w-20">
+            Mes
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {#each allWeeks as weekRow, weekIndex}
+          {@const segments = getVacationSegments(weekRow.week)}
+          <tr>
+            <!-- Wrapper cell for the week -->
+            <td colspan="7" class="p-0 relative">
+              <div class="relative">
+                <!-- Week days grid -->
+                <div class="grid grid-cols-7">
+                  {#each weekRow.week as day, dayIndex}
+                    {@const isToday = isSameDay(day, today)}
+                    {@const isWeekendDay = isWeekend(day)}
+                    {@const isFirstOfMonth = day.getDate() === 1}
+                    {@const dayMonth = startOfMonth(day)}
+                    {@const isDayInVisibleMonths = months.some((m) => isSameMonth(m, dayMonth))}
+                    <div
+                      class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth ? 'border-l-2 border-l-gray-900' : ''} {isDayInVisibleMonths
+                        ? isWeekendDay
+                          ? 'bg-gray-100'
+                          : 'bg-white'
+                        : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
+                    >
+                      <div class="text-xs {isFirstOfMonth ? 'font-bold' : 'font-medium'} {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
+                        {#if isFirstOfMonth}
+                          {format(day, 'd MMM', { locale: es })}
+                        {:else}
+                          {format(day, 'd')}
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+
+                <!-- Vacation bars overlay -->
+                <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
+                  <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
+                    {#each segments as segment}
+                      {@const isPending = segment.vacation.status === 'Pending'}
+                      {@const baseColor = getPersonColorValue(segment.person.id)}
+                      <div
+                        class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
+                          ? ''
+                          : getPersonColor(segment.person.id)}"
+                        style="grid-column: {segment.startCol + 1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
+                          ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
+                          : ''}"
+                        title="{segment.person.name} - {segment.vacation.status}"
+                      >
+                        {segment.person.name.split(' ')[0]}
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              </div>
+            </td>
+
+            <!-- Month label column -->
+            {#if weekRow.monthLabel}
+              {@const isCurrentMonth = isSameMonth(weekRow.monthLabel.monthDate, today)}
+              {@const monthAnchor = getMonthAnchor(weekRow.monthLabel.monthDate)}
+              <td
+                id={monthAnchor}
+                rowspan={weekRow.monthLabel.weeksInMonth}
+                class="border-b border-l border-gray-200 bg-gray-50 text-center align-middle {isCurrentMonth
+                  ? 'bg-blue-50'
+                  : ''}"
+              >
+                <div class="writing-mode-vertical text-sm font-bold {isCurrentMonth ? 'text-blue-600' : 'text-gray-700'} capitalize py-2">
+                  {format(weekRow.monthLabel.monthDate, 'MMMM yyyy', { locale: es })}
+                </div>
+              </td>
+            {/if}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+
+    <!-- Bottom sentinel for infinite scroll -->
+    <div bind:this={bottomSentinel} class="h-1"></div>
   </div>
 </div>
+
+<style>
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+</style>
