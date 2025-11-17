@@ -35,11 +35,24 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Aplicar migraciones automáticamente
+// Aplicar migraciones automáticamente y poblar feriados iniciales
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DescansarioDbContext>();
     db.Database.Migrate();
+
+    // Poblar feriados de Argentina si no existen
+    if (!await db.Holidays.AnyAsync())
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Poblando feriados iniciales de Argentina...");
+
+        var holidays = HolidaySeeds.GetArgentinaHolidays();
+        await db.Holidays.AddRangeAsync(holidays);
+        await db.SaveChangesAsync();
+
+        logger.LogInformation("Se agregaron {Count} feriados de Argentina (2025-2026)", holidays.Count);
+    }
 }
 
 // Configure the HTTP request pipeline

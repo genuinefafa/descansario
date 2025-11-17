@@ -25,7 +25,16 @@ public class HolidaySyncService
     {
         if (country == Country.AR)
         {
-            return await SyncArgentinaHolidaysAsync(year);
+            // Primero intentar con API externa, si falla usar seeds locales
+            try
+            {
+                return await SyncArgentinaHolidaysFromApiAsync(year);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "API externa falló, usando feriados locales como fallback");
+                return await SyncArgentinaHolidaysFromLocalAsync(year);
+            }
         }
         else if (country == Country.ES)
         {
@@ -35,7 +44,67 @@ public class HolidaySyncService
         throw new ArgumentException($"País no soportado: {country}");
     }
 
-    private async Task<(int added, int updated, List<string> holidayNames)> SyncArgentinaHolidaysAsync(int year)
+    /// <summary>
+    /// Sincroniza feriados de Argentina desde seeds locales
+    /// </summary>
+    private async Task<(int added, int updated, List<string> holidayNames)> SyncArgentinaHolidaysFromLocalAsync(int year)
+    {
+        _logger.LogInformation("Sincronizando feriados de Argentina (local) para el año {Year}", year);
+
+        var allHolidays = HolidaySeeds.GetArgentinaHolidays();
+        var holidaysForYear = allHolidays.Where(h => h.Date.Year == year).ToList();
+
+        if (holidaysForYear.Count == 0)
+        {
+            _logger.LogWarning("No hay feriados locales disponibles para el año {Year}", year);
+            throw new Exception($"No hay feriados disponibles para el año {year}. Solo disponible: 2025-2026");
+        }
+
+        int added = 0;
+        int updated = 0;
+        var holidayNames = new List<string>();
+
+        foreach (var holiday in holidaysForYear)
+        {
+            // Buscar si ya existe este feriado
+            var existing = await _db.Holidays
+                .FirstOrDefaultAsync(h => h.Date == holiday.Date && h.Country == Country.AR);
+
+            if (existing != null)
+            {
+                // Actualizar si cambió el nombre
+                if (existing.Name != holiday.Name)
+                {
+                    existing.Name = holiday.Name;
+                    updated++;
+                }
+            }
+            else
+            {
+                // Crear nuevo
+                _db.Holidays.Add(new Holiday
+                {
+                    Date = holiday.Date,
+                    Name = holiday.Name,
+                    Country = Country.AR,
+                    Region = null
+                });
+                added++;
+            }
+
+            holidayNames.Add(holiday.Name);
+        }
+
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Sincronización local completada: {Added} agregados, {Updated} actualizados",
+            added, updated);
+
+        return (added, updated, holidayNames);
+    }
+
+    private async Task<(int added, int updated, List<string> holidayNames)> SyncArgentinaHolidaysFromApiAsync(int year)
     {
         _logger.LogInformation("Sincronizando feriados de Argentina para el año {Year}", year);
 
