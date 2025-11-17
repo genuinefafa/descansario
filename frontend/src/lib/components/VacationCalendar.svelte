@@ -21,10 +21,12 @@
   import { onMount } from 'svelte';
   import type { Vacation } from '$lib/types/vacation';
   import type { Person } from '$lib/types/person';
+  import type { Holiday } from '$lib/types/holiday';
 
   interface Props {
     vacations: Vacation[];
     persons: Person[];
+    holidays: Holiday[];
   }
 
   interface VacationSegment {
@@ -41,7 +43,16 @@
     monthLabel?: { monthDate: Date; weeksInMonth: number };
   }
 
-  let { vacations, persons }: Props = $props();
+  let { vacations, persons, holidays }: Props = $props();
+
+  // Helper para encontrar feriado en una fecha
+  function getHolidayForDate(date: Date): Holiday | undefined {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return holidays.find(h => {
+      const holidayDate = format(parseISO(h.date), 'yyyy-MM-dd');
+      return holidayDate === dateStr;
+    });
+  }
 
   // Infinite scroll state
   const today = new Date();
@@ -426,9 +437,10 @@
                     {@const isFirstOfMonth = day.getDate() === 1}
                     {@const dayMonth = startOfMonth(day)}
                     {@const isDayInVisibleMonths = months.some((m) => isSameMonth(m, dayMonth))}
+                    {@const holiday = getHolidayForDate(day)}
                     <div
                       class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth ? 'border-l-2 border-l-gray-900' : ''} {isDayInVisibleMonths
-                        ? isWeekendDay
+                        ? isWeekendDay || holiday
                           ? 'bg-gray-100'
                           : 'bg-white'
                         : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
@@ -440,6 +452,11 @@
                           {format(day, 'd')}
                         {/if}
                       </div>
+                      {#if holiday}
+                        <div class="text-[10px] text-red-600 font-semibold leading-tight mt-0.5" title={holiday.name}>
+                          {holiday.name.length > 15 ? holiday.name.substring(0, 15) + '...' : holiday.name}
+                        </div>
+                      {/if}
                     </div>
                   {/each}
                 </div>

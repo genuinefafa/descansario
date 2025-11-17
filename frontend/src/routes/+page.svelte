@@ -370,6 +370,7 @@
           <VacationForm
             vacation={editingVacation}
             {persons}
+            {holidays}
             onSubmit={handleVacationSubmit}
             onCancel={closeVacationForm}
           />
@@ -432,7 +433,7 @@
             <p class="text-gray-500">Cargando...</p>
           </div>
         {:else}
-          <VacationCalendar {vacations} {persons} />
+          <VacationCalendar {vacations} {persons} {holidays} />
         {/if}
       {/if}
     </div>

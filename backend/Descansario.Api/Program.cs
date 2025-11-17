@@ -35,43 +35,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Aplicar migraciones automáticamente y sincronizar feriados iniciales
+// Aplicar migraciones automáticamente
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DescansarioDbContext>();
     db.Database.Migrate();
-
-    // Sincronizar feriados de Argentina para 2025 y 2026 si no existen
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    var syncService = scope.ServiceProvider.GetRequiredService<HolidaySyncService>();
-
-    var currentYear = DateTime.Now.Year;
-    var nextYear = currentYear + 1;
-
-    try
-    {
-        // Verificar si ya existen feriados para el año actual
-        var hasHolidaysCurrentYear = await db.Holidays.AnyAsync(h => h.Date.Year == currentYear);
-        if (!hasHolidaysCurrentYear)
-        {
-            logger.LogInformation("Sincronizando feriados de Argentina para {Year}...", currentYear);
-            var (added, _, _) = await syncService.SyncHolidaysAsync(currentYear, Country.AR);
-            logger.LogInformation("Se agregaron {Count} feriados para {Year}", added, currentYear);
-        }
-
-        // Verificar si ya existen feriados para el próximo año
-        var hasHolidaysNextYear = await db.Holidays.AnyAsync(h => h.Date.Year == nextYear);
-        if (!hasHolidaysNextYear)
-        {
-            logger.LogInformation("Sincronizando feriados de Argentina para {Year}...", nextYear);
-            var (added, _, _) = await syncService.SyncHolidaysAsync(nextYear, Country.AR);
-            logger.LogInformation("Se agregaron {Count} feriados para {Year}", added, nextYear);
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogWarning(ex, "No se pudieron sincronizar los feriados automáticamente. Se pueden sincronizar manualmente desde la UI.");
-    }
 }
 
 // Configure the HTTP request pipeline
