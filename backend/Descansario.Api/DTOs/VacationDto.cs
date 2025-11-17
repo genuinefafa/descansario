@@ -11,7 +11,7 @@ public record VacationDto
     public string Status { get; init; } = string.Empty;
 }
 
-public record CreateVacationDto
+public record VacationFormData
 {
     public int PersonId { get; init; }
     public DateTime StartDate { get; init; }
@@ -19,10 +19,5 @@ public record CreateVacationDto
     public string? Status { get; init; }
 }
 
-public record UpdateVacationDto
-{
-    public int PersonId { get; init; }
-    public DateTime StartDate { get; init; }
-    public DateTime EndDate { get; init; }
-    public string Status { get; init; } = "Pending";
-}
+public record CreateVacationDto : VacationFormData;
+public record UpdateVacationDto : VacationFormData;

@@ -1,3 +1,5 @@
+export type VacationStatus = 'Pending' | 'Approved' | 'Rejected';
+
 export interface Vacation {
   id: number;
   personId: number;
@@ -5,19 +7,15 @@ export interface Vacation {
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   workingDaysCount: number;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: VacationStatus;
 }
 
-export interface CreateVacationDto {
+export interface VacationFormData {
   personId: number;
   startDate: string; // ISO date string
   endDate: string; // ISO date string
-  status?: 'Pending' | 'Approved' | 'Rejected';
+  status?: VacationStatus;
 }
 
-export interface UpdateVacationDto {
-  personId: number;
-  startDate: string; // ISO date string
-  endDate: string; // ISO date string
-  status: 'Pending' | 'Approved' | 'Rejected';
-}
+export type CreateVacationDto = VacationFormData;
+export type UpdateVacationDto = VacationFormData;
