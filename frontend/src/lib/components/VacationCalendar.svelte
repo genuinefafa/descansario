@@ -251,8 +251,12 @@
       // Obtener todos los días del segmento
       const segmentDays = eachDayOfInterval({ start: segmentStart, end: segmentEnd });
 
-      // Filtrar solo días laborables
-      const workDays = segmentDays.filter((day) => !isWeekend(day));
+      // Filtrar solo días laborables (excluir weekends Y feriados)
+      const workDays = segmentDays.filter((day) => {
+        if (isWeekend(day)) return false;
+        const holiday = getHolidayForDate(day);
+        return !holiday; // Excluir feriados
+      });
 
       if (workDays.length === 0) continue;
 
@@ -440,10 +444,13 @@
                     {@const holiday = getHolidayForDate(day)}
                     <div
                       class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth ? 'border-l-2 border-l-gray-900' : ''} {isDayInVisibleMonths
-                        ? isWeekendDay || holiday
-                          ? 'bg-gray-100'
-                          : 'bg-white'
+                        ? holiday
+                          ? 'bg-amber-50'
+                          : isWeekendDay
+                            ? 'bg-gray-100'
+                            : 'bg-white'
                         : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
+                      title={holiday ? `Feriado: ${holiday.name}` : ''}
                     >
                       <div class="text-xs {isFirstOfMonth ? 'font-bold' : 'font-medium'} {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
                         {#if isFirstOfMonth}
