@@ -11,6 +11,17 @@
 
   let { vacations, onEdit, onDelete }: Props = $props();
 
+  // Filtro "desde" - predeterminado hoy
+  let filterFromDate = $state(new Date().toISOString().split('T')[0]);
+
+  // Vacaciones filtradas y ordenadas
+  let filteredVacations = $derived(() => {
+    const fromDate = new Date(filterFromDate);
+    return vacations
+      .filter(v => new Date(v.endDate) >= fromDate)
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  });
+
   function formatDate(dateString: string): string {
     return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
   }
@@ -35,7 +46,22 @@
 </script>
 
 <div class="bg-white shadow-md rounded-lg overflow-hidden">
-  {#if vacations.length === 0}
+  <div class="p-4 border-b border-gray-200">
+    <label for="filterFrom" class="block text-sm font-medium text-gray-700 mb-2">
+      Mostrar vacaciones activas desde:
+    </label>
+    <input
+      id="filterFrom"
+      type="date"
+      bind:value={filterFromDate}
+      class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    <span class="ml-3 text-sm text-gray-500">
+      ({filteredVacations().length} de {vacations.length} vacaciones)
+    </span>
+  </div>
+
+  {#if filteredVacations().length === 0}
     <div class="p-8 text-center text-gray-500">
       <p>No hay vacaciones registradas</p>
       <p class="text-sm mt-2">Comienza agregando una nueva vacación</p>
@@ -77,7 +103,7 @@
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
-        {#each vacations as vacation (vacation.id)}
+        {#each filteredVacations() as vacation (vacation.id)}
           <tr class="hover:bg-gray-50">
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="text-sm font-medium text-gray-900">{vacation.personName}</div>

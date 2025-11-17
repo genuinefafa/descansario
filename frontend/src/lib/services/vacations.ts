@@ -25,4 +25,8 @@ export const vacationsService = {
   async delete(id: number): Promise<void> {
     return api.delete<void>(`/api/vacations/${id}`);
   },
+
+  async getOverlapping(startDate: string, endDate: string): Promise<Vacation[]> {
+    return api.get<Vacation[]>(`/api/vacations/overlap?startDate=${startDate}&endDate=${endDate}`);
+  },
 };

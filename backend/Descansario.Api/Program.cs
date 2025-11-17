@@ -227,7 +227,8 @@ app.MapGet("/api/vacations", async (DescansarioDbContext db) =>
             StartDate = v.StartDate,
             EndDate = v.EndDate,
             WorkingDaysCount = v.WorkingDaysCount,
-            Status = v.Status.ToString()
+            Status = v.Status.ToString(),
+            Notes = v.Notes
         })
         .ToListAsync();
 
@@ -250,13 +251,38 @@ app.MapGet("/api/vacations/person/{personId:int}", async (int personId, Descansa
             StartDate = v.StartDate,
             EndDate = v.EndDate,
             WorkingDaysCount = v.WorkingDaysCount,
-            Status = v.Status.ToString()
+            Status = v.Status.ToString(),
+            Notes = v.Notes
         })
         .ToListAsync();
 
     return Results.Ok(vacations);
 })
 .WithName("GetVacationsByPerson")
+.WithTags("Vacations");
+
+// GET /api/vacations/overlap?startDate={start}&endDate={end} - Verificar solapamiento de vacaciones
+app.MapGet("/api/vacations/overlap", async (DateTime startDate, DateTime endDate, DescansarioDbContext db) =>
+{
+    var overlappingVacations = await db.Vacations
+        .Include(v => v.Person)
+        .Where(v => v.StartDate <= endDate && v.EndDate >= startDate)
+        .Select(v => new VacationDto
+        {
+            Id = v.Id,
+            PersonId = v.PersonId,
+            PersonName = v.Person!.Name,
+            StartDate = v.StartDate,
+            EndDate = v.EndDate,
+            WorkingDaysCount = v.WorkingDaysCount,
+            Status = v.Status.ToString(),
+            Notes = v.Notes
+        })
+        .ToListAsync();
+
+    return Results.Ok(overlappingVacations);
+})
+.WithName("GetOverlappingVacations")
 .WithTags("Vacations");
 
 // GET /api/vacations/{id} - Obtener una vacación por ID
@@ -273,7 +299,8 @@ app.MapGet("/api/vacations/{id:int}", async (int id, DescansarioDbContext db) =>
             StartDate = v.StartDate,
             EndDate = v.EndDate,
             WorkingDaysCount = v.WorkingDaysCount,
-            Status = v.Status.ToString()
+            Status = v.Status.ToString(),
+            Notes = v.Notes
         })
         .FirstOrDefaultAsync();
 
@@ -317,7 +344,8 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
         StartDate = dto.StartDate,
         EndDate = dto.EndDate,
         WorkingDaysCount = workingDays,
-        Status = status
+        Status = status,
+        Notes = dto.Notes
     };
 
     db.Vacations.Add(vacation);
@@ -334,7 +362,8 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
         StartDate = vacation.StartDate,
         EndDate = vacation.EndDate,
         WorkingDaysCount = vacation.WorkingDaysCount,
-        Status = vacation.Status.ToString()
+        Status = vacation.Status.ToString(),
+        Notes = vacation.Notes
     };
 
     return Results.Created($"/api/vacations/{vacation.Id}", vacationDto);
@@ -372,6 +401,7 @@ app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, Desc
     vacation.PersonId = dto.PersonId;
     vacation.StartDate = dto.StartDate;
     vacation.EndDate = dto.EndDate;
+    vacation.Notes = dto.Notes;
 
     // Parsear el status
     if (Enum.TryParse<VacationStatus>(dto.Status, out var status))
@@ -392,7 +422,8 @@ app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, Desc
         StartDate = vacation.StartDate,
         EndDate = vacation.EndDate,
         WorkingDaysCount = vacation.WorkingDaysCount,
-        Status = vacation.Status.ToString()
+        Status = vacation.Status.ToString(),
+        Notes = vacation.Notes
     };
 
     return Results.Ok(vacationDto);

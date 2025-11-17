@@ -9,6 +9,7 @@ public record VacationDto
     public DateTime EndDate { get; init; }
     public int WorkingDaysCount { get; init; }
     public string Status { get; init; } = string.Empty;
+    public string? Notes { get; init; }
 }
 
 public record VacationFormData
@@ -17,6 +18,7 @@ public record VacationFormData
     public DateTime StartDate { get; init; }
     public DateTime EndDate { get; init; }
     public string? Status { get; init; }
+    public string? Notes { get; init; }
 }
 
 public record CreateVacationDto : VacationFormData;

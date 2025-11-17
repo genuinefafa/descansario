@@ -71,6 +71,42 @@ npm install
 npm run dev
 ```
 
+#### Migraciones de Base de Datos
+
+La aplicación usa **Entity Framework Core** con migraciones para gestionar el esquema de la base de datos.
+
+**¿Qué son las migraciones?**
+- Son archivos que describen cambios en el esquema de la base de datos
+- Permiten versionar y aplicar cambios de forma incremental
+- Se aplican automáticamente al iniciar la API (ver `Program.cs`)
+
+**En Docker** (recomendado):
+```bash
+# Las migraciones se aplican automáticamente al iniciar
+docker-compose up -d
+```
+
+**En desarrollo local**:
+```bash
+cd backend/Descansario.Api
+
+# Ver migraciones pendientes
+dotnet ef migrations list
+
+# Aplicar migraciones manualmente (no necesario, se auto-aplican)
+dotnet ef database update
+
+# Crear nueva migración (solo si modificaste los modelos)
+dotnet ef migrations add NombreDeLaMigracion
+```
+
+**Archivos importantes**:
+- `backend/Descansario.Api/Migrations/` - Carpeta con todas las migraciones
+- `backend/Descansario.Api/Program.cs` - Línea 35-38: Auto-aplicación de migraciones
+- `backend/descansario.db` - Base de datos SQLite (se crea automáticamente)
+
+**Nota**: No necesitas ejecutar migraciones manualmente, la API las aplica automáticamente al iniciar. Solo debes ejecutar comandos si estás creando nuevas migraciones.
+
 ### ✅ Validación de Código
 
 **Antes de hacer commit**, ejecuta en el frontend:
@@ -128,6 +164,7 @@ descansario/
 - `endDate`: Fecha de fin
 - `workingDaysCount`: Días hábiles (calculado automáticamente)
 - `status`: Estado (pending, approved, rejected)
+- `notes`: Notas adicionales (opcional, soporte Markdown)
 
 ### Holiday
 - `id`: Identificador único
