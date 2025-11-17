@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { api } from './api';
 import type {
 	Holiday,
 	CreateHolidayDto,
@@ -11,37 +11,37 @@ import type {
 export const holidaysService = {
 	// Listar todos los feriados
 	async getAll(): Promise<Holiday[]> {
-		return apiClient.get<Holiday[]>('/holidays');
+		return api.get<Holiday[]>('/api/holidays');
 	},
 
 	// Listar feriados de un año específico
 	async getByYear(year: number, country?: Country): Promise<Holiday[]> {
 		const params = country ? `?country=${country}` : '';
-		return apiClient.get<Holiday[]>(`/holidays/year/${year}${params}`);
+		return api.get<Holiday[]>(`/api/holidays/year/${year}${params}`);
 	},
 
 	// Obtener un feriado por ID
 	async getById(id: number): Promise<Holiday> {
-		return apiClient.get<Holiday>(`/holidays/${id}`);
+		return api.get<Holiday>(`/api/holidays/${id}`);
 	},
 
 	// Crear un nuevo feriado
 	async create(holiday: CreateHolidayDto): Promise<Holiday> {
-		return apiClient.post<Holiday>('/holidays', holiday);
+		return api.post<Holiday>('/api/holidays', holiday);
 	},
 
 	// Actualizar un feriado
 	async update(id: number, holiday: UpdateHolidayDto): Promise<Holiday> {
-		return apiClient.put<Holiday>(`/holidays/${id}`, holiday);
+		return api.put<Holiday>(`/api/holidays/${id}`, holiday);
 	},
 
 	// Eliminar un feriado
 	async delete(id: number): Promise<void> {
-		return apiClient.delete(`/holidays/${id}`);
+		return api.delete(`/api/holidays/${id}`);
 	},
 
 	// Sincronizar feriados desde API externa
 	async sync(request: SyncHolidaysRequest): Promise<SyncHolidaysResponse> {
-		return apiClient.post<SyncHolidaysResponse>('/holidays/sync', request);
+		return api.post<SyncHolidaysResponse>('/api/holidays/sync', request);
 	}
 };
