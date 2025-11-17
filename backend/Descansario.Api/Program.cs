@@ -723,4 +723,35 @@ app.MapPost("/api/holidays/import", async (ImportHolidaysRequest request, Holida
 .WithName("ImportHolidays")
 .WithTags("Holidays");
 
+// DELETE /api/holidays/year/{year} - Eliminar feriados de un año específico (solo desarrollo)
+app.MapDelete("/api/holidays/year/{year:int}", async (int year, DescansarioDbContext db, IWebHostEnvironment env) =>
+{
+    // Solo permitir en desarrollo
+    if (!env.IsDevelopment())
+    {
+        return Results.Forbid();
+    }
+
+    // Validar año
+    if (year < 2000 || year > 2100)
+    {
+        return Results.BadRequest(new { message = "Año inválido. Debe estar entre 2000 y 2100" });
+    }
+
+    var holidaysToDelete = await db.Holidays.Where(h => h.Date.Year == year).ToListAsync();
+    var count = holidaysToDelete.Count;
+
+    if (count == 0)
+    {
+        return Results.Ok(new { message = $"No se encontraron feriados para el año {year}", deletedCount = 0 });
+    }
+
+    db.Holidays.RemoveRange(holidaysToDelete);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { message = $"Se eliminaron {count} feriados del año {year}", deletedCount = count });
+})
+.WithName("DeleteHolidaysByYear")
+.WithTags("Holidays");
+
 app.Run();

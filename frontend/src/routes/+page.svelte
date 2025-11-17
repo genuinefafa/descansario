@@ -285,6 +285,23 @@
     }
   }
 
+  async function handleHolidayDeleteByYear(year: number) {
+    try {
+      isSyncing = true;
+      error = '';
+      const response = await holidaysService.deleteByYear(year);
+      await loadHolidays();
+
+      // Mostrar mensaje de éxito
+      alert(`${response.message}`);
+    } catch (err) {
+      error = `Error al eliminar feriados del año ${year}`;
+      console.error(err);
+    } finally {
+      isSyncing = false;
+    }
+  }
+
   function openNewHolidayForm() {
     editingHoliday = null;
     showHolidayForm = true;
@@ -443,6 +460,7 @@
               onDelete={handleHolidayDelete}
               onSync={handleHolidaySync}
               onImport={handleHolidayImport}
+              onDeleteByYear={handleHolidayDeleteByYear}
               {isSyncing}
             />
           {/if}

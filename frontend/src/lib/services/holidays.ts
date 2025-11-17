@@ -49,5 +49,10 @@ export const holidaysService = {
 	// Importar feriados desde JSON
 	async import(request: ImportHolidaysRequest): Promise<SyncHolidaysResponse> {
 		return api.post<SyncHolidaysResponse>('/api/holidays/import', request);
+	},
+
+	// Eliminar feriados de un año específico (solo desarrollo)
+	async deleteByYear(year: number): Promise<{ message: string; deletedCount: number }> {
+		return api.delete(`/api/holidays/year/${year}`);
 	}
 };

@@ -9,14 +9,17 @@
 		onDelete: (id: number) => void;
 		onSync?: (year: number) => Promise<void>;
 		onImport?: (jsonContent: string) => Promise<void>;
+		onDeleteByYear?: (year: number) => Promise<void>;
 		isSyncing?: boolean;
 	}
 
-	let { holidays, onEdit, onDelete, onSync, onImport, isSyncing = false }: Props = $props();
+	let { holidays, onEdit, onDelete, onSync, onImport, onDeleteByYear, isSyncing = false }: Props = $props();
 
 	let selectedYear = $state(new Date().getFullYear());
 	let showSyncDialog = $state(false);
 	let showImportDialog = $state(false);
+	let showDeleteDialog = $state(false);
+	let deleteYear = $state(new Date().getFullYear());
 	let jsonContent = $state('');
 	let isImporting = $state(false);
 
@@ -52,6 +55,13 @@
 		}
 	}
 
+	async function handleDelete() {
+		if (onDeleteByYear) {
+			await onDeleteByYear(deleteYear);
+			showDeleteDialog = false;
+		}
+	}
+
 	// Agrupar feriados por año
 	let holidaysByYear = $derived(() => {
 		const grouped = new Map<number, Holiday[]>();
@@ -69,7 +79,7 @@
 
 <div class="space-y-4">
 	<!-- Botones de acción -->
-	{#if onSync || onImport}
+	{#if onSync || onImport || (onDeleteByYear && import.meta.env.DEV)}
 		<div class="flex justify-between items-center">
 			<h2 class="text-xl font-semibold">Feriados</h2>
 			<div class="flex gap-2">
@@ -94,6 +104,16 @@
 						{:else}
 							🔄 Sincronizar API
 						{/if}
+					</button>
+				{/if}
+				{#if onDeleteByYear && import.meta.env.DEV}
+					<button
+						onclick={() => (showDeleteDialog = true)}
+						disabled={isSyncing || isImporting}
+						class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+						title="Solo disponible en desarrollo"
+					>
+						🗑️ Borrar Año
 					</button>
 				{/if}
 			</div>
@@ -210,6 +230,57 @@
 						class="px-4 py-2 text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50"
 					>
 						{isImporting ? 'Importando...' : 'Importar'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Dialog de borrado por año -->
+	{#if showDeleteDialog}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+			onclick={(e) => e.target === e.currentTarget && (showDeleteDialog = false)}
+		>
+			<div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+				<h3 class="text-lg font-semibold mb-4 text-red-700">⚠️ Eliminar Feriados</h3>
+				<p class="text-sm text-gray-600 mb-2">
+					Esto eliminará TODOS los feriados del año seleccionado.
+				</p>
+				<p class="text-sm text-red-600 font-semibold mb-4">
+					Esta acción no se puede deshacer.
+				</p>
+
+				<div class="mb-4">
+					<label for="delete-year" class="block text-sm font-medium text-gray-700 mb-1">
+						Año a eliminar
+					</label>
+					<input
+						id="delete-year"
+						type="number"
+						bind:value={deleteYear}
+						min="2000"
+						max="2100"
+						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+					/>
+				</div>
+
+				<div class="flex gap-2 justify-end">
+					<button
+						onclick={() => (showDeleteDialog = false)}
+						disabled={isSyncing}
+						class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+					>
+						Cancelar
+					</button>
+					<button
+						onclick={handleDelete}
+						disabled={isSyncing}
+						class="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+					>
+						{isSyncing ? 'Eliminando...' : 'Eliminar'}
 					</button>
 				</div>
 			</div>
