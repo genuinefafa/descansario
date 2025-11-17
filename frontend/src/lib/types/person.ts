@@ -5,14 +5,11 @@ export interface Person {
   availableDays: number;
 }
 
-export interface CreatePersonDto {
-  name: string;
-  email: string;
-  availableDays?: number;
-}
-
-export interface UpdatePersonDto {
+export interface PersonFormData {
   name: string;
   email: string;
   availableDays: number;
 }
+
+export type CreatePersonDto = PersonFormData;
+export type UpdatePersonDto = PersonFormData;

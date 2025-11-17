@@ -43,12 +43,8 @@
         personId,
         startDate: new Date(startDate).toISOString(),
         endDate: new Date(endDate).toISOString(),
+        status: status,
       };
-
-      // Solo incluir status al editar
-      if (vacation) {
-        submitData.status = status;
-      }
 
       await onSubmit(submitData);
     } catch (err) {
@@ -125,20 +121,18 @@
       />
     </div>
 
-    {#if vacation}
-      <div>
-        <label for="status" class="block text-sm font-medium text-gray-700 mb-1"> Estado </label>
-        <select
-          id="status"
-          bind:value={status}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="Pending">Pendiente</option>
-          <option value="Approved">Aprobado</option>
-          <option value="Rejected">Rechazado</option>
-        </select>
-      </div>
-    {/if}
+    <div>
+      <label for="status" class="block text-sm font-medium text-gray-700 mb-1"> Estado </label>
+      <select
+        id="status"
+        bind:value={status}
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="Pending">Pendiente</option>
+        <option value="Approved">Aprobado</option>
+        <option value="Rejected">Rechazado</option>
+      </select>
+    </div>
 
     <div class="flex gap-3 pt-4">
       <button
