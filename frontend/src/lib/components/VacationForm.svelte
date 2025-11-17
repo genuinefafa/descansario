@@ -3,7 +3,7 @@
   import type { Person } from '$lib/types/person';
   import type { Holiday } from '$lib/types/holiday';
   import { vacationsService } from '$lib/services/vacations';
-  import { parseISO, isWithinInterval, eachDayOfInterval, isWeekend } from 'date-fns';
+  import { parseISO } from 'date-fns';
 
   interface Props {
     vacation?: Vacation | null;
@@ -42,26 +42,24 @@
     });
   });
 
-  // Calcular días hábiles estimados (excluye weekends y feriados)
-  let estimatedWorkingDays = $derived(() => {
-    if (!startDate || !endDate) return 0;
+  // Calcular días hábiles estimados usando el backend (mismo algoritmo que WorkingDaysCalculator)
+  let estimatedWorkingDays = $state(0);
 
-    const start = parseISO(startDate + 'T00:00:00');
-    const end = parseISO(endDate + 'T23:59:59');
-    const allDays = eachDayOfInterval({ start, end });
+  // Efecto para calcular días hábiles cuando cambian las fechas
+  $effect(() => {
+    if (!startDate || !endDate) {
+      estimatedWorkingDays = 0;
+      return;
+    }
 
-    // Contar días que NO son weekend ni feriados
-    return allDays.filter(day => {
-      if (isWeekend(day)) return false;
-
-      const dayStr = day.toISOString().split('T')[0];
-      const isHoliday = holidays.some(h => {
-        const holidayStr = parseISO(h.date).toISOString().split('T')[0];
-        return holidayStr === dayStr;
+    // Llamar al backend para obtener el cálculo exacto
+    vacationsService.calculateWorkingDays(startDate, endDate)
+      .then(days => {
+        estimatedWorkingDays = days;
+      })
+      .catch(() => {
+        estimatedWorkingDays = 0;
       });
-
-      return !isHoliday;
-    }).length;
   });
 
   async function handleSubmit(event: Event) {

@@ -29,4 +29,11 @@ export const vacationsService = {
   async getOverlapping(startDate: string, endDate: string): Promise<Vacation[]> {
     return api.get<Vacation[]>(`/api/vacations/overlap?startDate=${startDate}&endDate=${endDate}`);
   },
+
+  async calculateWorkingDays(startDate: string, endDate: string): Promise<number> {
+    const response = await api.get<{ workingDays: number }>(
+      `/api/vacations/working-days?startDate=${startDate}&endDate=${endDate}`
+    );
+    return response.workingDays;
+  },
 };

@@ -464,6 +464,20 @@ app.MapDelete("/api/vacations/{id:int}", async (int id, DescansarioDbContext db)
 .WithName("DeleteVacation")
 .WithTags("Vacations");
 
+// GET /api/vacations/working-days - Calcular días hábiles estimados
+app.MapGet("/api/vacations/working-days", async (DateTime startDate, DateTime endDate, WorkingDaysCalculator calculator) =>
+{
+    if (startDate > endDate)
+    {
+        return Results.BadRequest(new { message = "La fecha de inicio debe ser anterior o igual a la fecha de fin" });
+    }
+
+    var workingDays = await calculator.CalculateWorkingDaysAsync(startDate, endDate);
+    return Results.Ok(new { workingDays });
+})
+.WithName("CalculateWorkingDays")
+.WithTags("Vacations");
+
 // ==============================================================
 // CRUD Endpoints - Holidays
 // ==============================================================
