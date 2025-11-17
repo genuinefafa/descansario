@@ -8,6 +8,7 @@ export interface Vacation {
   endDate: string; // ISO date string
   workingDaysCount: number;
   status: VacationStatus;
+  notes?: string;
 }
 
 export interface VacationFormData {
@@ -15,6 +16,7 @@ export interface VacationFormData {
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   status?: VacationStatus;
+  notes?: string;
 }
 
 export type CreateVacationDto = VacationFormData;

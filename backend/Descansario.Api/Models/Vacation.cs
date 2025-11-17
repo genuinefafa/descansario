@@ -14,6 +14,8 @@ public class Vacation
 
     public VacationStatus Status { get; set; } = VacationStatus.Pending;
 
+    public string? Notes { get; set; } // Soporte para markdown
+
     // Navigation property
     public Person? Person { get; set; }
 }
