@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Serilog;
 using Descansario.Api.Data;
 using Descansario.Api.Models;
 using Descansario.Api.DTOs;
@@ -9,6 +10,22 @@ using Descansario.Api.Helpers;
 using Descansario.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configurar Serilog para logging estructurado
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: builder.Configuration["Logging:FilePath"] ?? "/var/log/descansario/app-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container
 builder.Services.AddEndpointsApiExplorer();
@@ -942,4 +959,17 @@ app.MapDelete("/api/holidays/year/{year:int}", async (int year, DescansarioDbCon
 .WithTags("Holidays")
 .RequireAuthorization();
 
-app.Run();
+try
+{
+    Log.Information("Iniciando Descansario API");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "La aplicación falló al iniciar");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}
