@@ -218,10 +218,21 @@ app.MapPost("/api/auth/register", async (RegisterRequest request, AuthService au
 // GET /api/auth/me - Obtener usuario actual (requiere autenticación)
 app.MapGet("/api/auth/me", async (HttpContext context, DescansarioDbContext db) =>
 {
+    // TEMPORARY DEBUG: List all claims
+    Log.Information("=== CLAIMS DEBUG ===");
+    foreach (var claim in context.User.Claims)
+    {
+        Log.Information("  Claim Type: {Type} | Value: {Value}", claim.Type, claim.Value);
+    }
+    Log.Information("===================");
+
     var userIdClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+    Log.Information("NameIdentifier claim found: {Found} | Value: {Value}",
+        userIdClaim != null, userIdClaim?.Value ?? "NULL");
 
     if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
     {
+        Log.Warning("Failed to parse user ID from claim. Value was: {Value}", userIdClaim?.Value ?? "NULL");
         return Results.Unauthorized();
     }
 
