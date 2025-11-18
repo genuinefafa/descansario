@@ -1,11 +1,14 @@
 <script lang="ts">
   import type { Vacation } from '$lib/types/vacation';
   import type { Person } from '$lib/types/person';
+  import type { Holiday } from '$lib/types/holiday';
   import { vacationsService } from '$lib/services/vacations';
+  import { parseISO } from 'date-fns';
 
   interface Props {
     vacation?: Vacation | null;
     persons: Person[];
+    holidays: Holiday[];
     onSubmit: (data: {
       personId: number;
       startDate: string;
@@ -15,7 +18,7 @@
     onCancel: () => void;
   }
 
-  let { vacation = null, persons, onSubmit, onCancel }: Props = $props();
+  let { vacation = null, persons, holidays, onSubmit, onCancel }: Props = $props();
 
   let personId = $state(vacation?.personId || (persons[0]?.id ?? 0));
   let startDate = $state(vacation?.startDate.split('T')[0] || '');
@@ -25,6 +28,39 @@
   let isSubmitting = $state(false);
   let error = $state('');
   let overlappingVacations = $state<Vacation[]>([]);
+
+  // Calcular feriados y días hábiles en el rango seleccionado
+  let holidaysInRange = $derived(() => {
+    if (!startDate || !endDate) return [];
+
+    const start = parseISO(startDate + 'T00:00:00');
+    const end = parseISO(endDate + 'T23:59:59');
+
+    return holidays.filter(h => {
+      const holidayDate = parseISO(h.date);
+      return holidayDate >= start && holidayDate <= end;
+    });
+  });
+
+  // Calcular días hábiles estimados usando el backend (mismo algoritmo que WorkingDaysCalculator)
+  let estimatedWorkingDays = $state(0);
+
+  // Efecto para calcular días hábiles cuando cambian las fechas
+  $effect(() => {
+    if (!startDate || !endDate) {
+      estimatedWorkingDays = 0;
+      return;
+    }
+
+    // Llamar al backend para obtener el cálculo exacto
+    vacationsService.calculateWorkingDays(startDate, endDate)
+      .then(days => {
+        estimatedWorkingDays = days;
+      })
+      .catch(() => {
+        estimatedWorkingDays = 0;
+      });
+  });
 
   async function handleSubmit(event: Event) {
     event.preventDefault();
@@ -151,6 +187,32 @@
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
     </div>
+
+    {#if startDate && endDate}
+      <div class="bg-green-50 border border-green-200 px-4 py-3 rounded">
+        <p class="font-semibold text-sm text-green-900 mb-1">
+          Días hábiles estimados: <span class="text-lg">{estimatedWorkingDays}</span>
+        </p>
+        <p class="text-xs text-green-700">
+          (excluye fines de semana y feriados)
+        </p>
+      </div>
+    {/if}
+
+    {#if holidaysInRange().length > 0}
+      <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
+        <p class="font-medium text-sm mb-1">
+          Feriados en este período ({holidaysInRange().length}):
+        </p>
+        <ul class="text-sm space-y-1">
+          {#each holidaysInRange() as holiday}
+            <li>
+              • {new Date(holiday.date).toLocaleDateString('es-AR')} - {holiday.name}
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
 
     {#if overlappingVacations.length > 0}
       <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">

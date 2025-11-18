@@ -21,10 +21,12 @@
   import { onMount } from 'svelte';
   import type { Vacation } from '$lib/types/vacation';
   import type { Person } from '$lib/types/person';
+  import type { Holiday } from '$lib/types/holiday';
 
   interface Props {
     vacations: Vacation[];
     persons: Person[];
+    holidays: Holiday[];
   }
 
   interface VacationSegment {
@@ -41,7 +43,16 @@
     monthLabel?: { monthDate: Date; weeksInMonth: number };
   }
 
-  let { vacations, persons }: Props = $props();
+  let { vacations, persons, holidays }: Props = $props();
+
+  // Helper para encontrar feriado en una fecha
+  function getHolidayForDate(date: Date): Holiday | undefined {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return holidays.find(h => {
+      const holidayDate = format(parseISO(h.date), 'yyyy-MM-dd');
+      return holidayDate === dateStr;
+    });
+  }
 
   // Infinite scroll state
   const today = new Date();
@@ -240,8 +251,12 @@
       // Obtener todos los días del segmento
       const segmentDays = eachDayOfInterval({ start: segmentStart, end: segmentEnd });
 
-      // Filtrar solo días laborables
-      const workDays = segmentDays.filter((day) => !isWeekend(day));
+      // Filtrar solo días laborables (excluir weekends Y feriados)
+      const workDays = segmentDays.filter((day) => {
+        if (isWeekend(day)) return false;
+        const holiday = getHolidayForDate(day);
+        return !holiday; // Excluir feriados
+      });
 
       if (workDays.length === 0) continue;
 
@@ -253,15 +268,31 @@
         const prevDay = workDays[i - 1];
         const currentDay = workDays[i];
 
-        // Si el día actual es consecutivo al anterior (considerando que puede haber fin de semana en medio)
-        const diffDays = Math.floor(
+        // Calcular diferencia en días
+        const diffInDays = Math.floor(
           (currentDay.getTime() - prevDay.getTime()) / (1000 * 60 * 60 * 24)
         );
 
-        if (diffDays <= 3) {
-          // 3 días máximo (viernes -> lunes)
+        // Si son días consecutivos (diff = 1), continuar el segmento
+        if (diffInDays === 1) {
+          currentSubSegmentEnd = currentDay;
+          continue;
+        }
+
+        // Si hay días en medio, verificar que TODOS sean weekends (no feriados)
+        const daysBetween = eachDayOfInterval({
+          start: addDays(prevDay, 1),
+          end: addDays(currentDay, -1)
+        });
+
+        // Solo continuar el segmento si los días intermedios son SOLO weekends
+        const allIntermediateAreWeekends = daysBetween.every(day => isWeekend(day));
+
+        if (allIntermediateAreWeekends) {
+          // Continuar el segmento (solo hay weekends en medio)
           currentSubSegmentEnd = currentDay;
         } else {
+          // Hay algo más que weekends en medio (probablemente un feriado)
           // Guardar el subsegmento actual y empezar uno nuevo
           const startCol = getDay(currentSubSegmentStart); // dom=0, lun=1, ..., sáb=6
           const endCol = getDay(currentSubSegmentEnd);
@@ -426,12 +457,16 @@
                     {@const isFirstOfMonth = day.getDate() === 1}
                     {@const dayMonth = startOfMonth(day)}
                     {@const isDayInVisibleMonths = months.some((m) => isSameMonth(m, dayMonth))}
+                    {@const holiday = getHolidayForDate(day)}
                     <div
                       class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth ? 'border-l-2 border-l-gray-900' : ''} {isDayInVisibleMonths
-                        ? isWeekendDay
-                          ? 'bg-gray-100'
-                          : 'bg-white'
+                        ? holiday
+                          ? 'bg-amber-50'
+                          : isWeekendDay
+                            ? 'bg-gray-100'
+                            : 'bg-white'
                         : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
+                      title={holiday ? `Feriado: ${holiday.name}` : ''}
                     >
                       <div class="text-xs {isFirstOfMonth ? 'font-bold' : 'font-medium'} {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
                         {#if isFirstOfMonth}
@@ -440,6 +475,11 @@
                           {format(day, 'd')}
                         {/if}
                       </div>
+                      {#if holiday}
+                        <div class="text-[10px] text-red-600 font-semibold leading-tight mt-0.5" title={holiday.name}>
+                          {holiday.name.length > 15 ? holiday.name.substring(0, 15) + '...' : holiday.name}
+                        </div>
+                      {/if}
                     </div>
                   {/each}
                 </div>

@@ -7,12 +7,16 @@
   import VacationList from '$lib/components/VacationList.svelte';
   import VacationForm from '$lib/components/VacationForm.svelte';
   import VacationCalendar from '$lib/components/VacationCalendar.svelte';
+  import HolidayList from '$lib/components/HolidayList.svelte';
+  import HolidayForm from '$lib/components/HolidayForm.svelte';
   import { personsService } from '$lib/services/persons';
   import { vacationsService } from '$lib/services/vacations';
+  import { holidaysService } from '$lib/services/holidays';
   import type { Person } from '$lib/types/person';
   import type { Vacation } from '$lib/types/vacation';
+  import type { Holiday } from '$lib/types/holiday';
 
-  type Tab = 'persons' | 'vacations' | 'calendar';
+  type Tab = 'persons' | 'vacations' | 'holidays' | 'calendar';
 
   // Initialize tab from URL (runs once on mount)
   function getInitialTab(): Tab {
@@ -40,6 +44,8 @@
         return 'Personas - Descansario';
       case 'vacations':
         return 'Vacaciones - Descansario';
+      case 'holidays':
+        return 'Feriados - Descansario';
       case 'calendar':
         return 'Calendario - Descansario';
       default:
@@ -57,12 +63,18 @@
   let showVacationForm = $state(false);
   let editingVacation = $state<Vacation | null>(null);
 
+  // Holidays state
+  let holidays = $state<Holiday[]>([]);
+  let showHolidayForm = $state(false);
+  let editingHoliday = $state<Holiday | null>(null);
+  let isSyncing = $state(false);
+
   // Common state
   let loading = $state(true);
   let error = $state('');
 
   onMount(async () => {
-    await Promise.all([loadPersons(), loadVacations()]);
+    await Promise.all([loadPersons(), loadVacations(), loadHolidays()]);
   });
 
   async function loadPersons() {
@@ -85,6 +97,19 @@
       vacations = await vacationsService.getAll();
     } catch (err) {
       error = 'Error al cargar las vacaciones. Verifica que el backend esté corriendo.';
+      console.error(err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function loadHolidays() {
+    try {
+      loading = true;
+      error = '';
+      holidays = await holidaysService.getAll();
+    } catch (err) {
+      error = 'Error al cargar los feriados. Verifica que el backend esté corriendo.';
       console.error(err);
     } finally {
       loading = false;
@@ -185,6 +210,108 @@
     editingVacation = null;
   }
 
+  // Holidays handlers
+  async function handleHolidaySubmit(data: {
+    date: string;
+    name: string;
+    country: 'AR' | 'ES';
+    region?: string;
+  }) {
+    try {
+      if (editingHoliday) {
+        await holidaysService.update(editingHoliday.id, data);
+      } else {
+        await holidaysService.create(data);
+      }
+      await loadHolidays();
+      closeHolidayForm();
+    } catch (err) {
+      error = 'Error al guardar el feriado';
+      console.error(err);
+    }
+  }
+
+  function handleHolidayEdit(holiday: Holiday) {
+    editingHoliday = holiday;
+    showHolidayForm = true;
+  }
+
+  async function handleHolidayDelete(id: number) {
+    if (!confirm('¿Estás seguro de eliminar este feriado?')) return;
+
+    try {
+      await holidaysService.delete(id);
+      await loadHolidays();
+    } catch (err) {
+      error = 'Error al eliminar el feriado';
+      console.error(err);
+    }
+  }
+
+  async function handleHolidaySync(year: number) {
+    try {
+      isSyncing = true;
+      error = '';
+      const response = await holidaysService.sync({ year, country: 'AR' });
+      await loadHolidays();
+
+      // Mostrar mensaje de éxito
+      const message = `Sincronización completada: ${response.added} agregados, ${response.updated} actualizados (${response.total} total)`;
+      alert(message);
+    } catch (err) {
+      error = 'Error al sincronizar feriados';
+      console.error(err);
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  async function handleHolidayImport(jsonContent: string) {
+    try {
+      isSyncing = true; // Reusar el mismo flag para simplificar
+      error = '';
+      const response = await holidaysService.import({ jsonContent, country: 'AR' });
+      await loadHolidays();
+
+      // Mostrar mensaje de éxito
+      const message = `Importación completada: ${response.added} agregados, ${response.updated} actualizados (${response.total} total)`;
+      alert(message);
+    } catch (err) {
+      error = 'Error al importar feriados';
+      console.error(err);
+      throw err; // Re-throw para que el componente maneje el error
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  async function handleHolidayDeleteByYear(year: number) {
+    try {
+      isSyncing = true;
+      error = '';
+      const response = await holidaysService.deleteByYear(year);
+      await loadHolidays();
+
+      // Mostrar mensaje de éxito
+      alert(`${response.message}`);
+    } catch (err) {
+      error = `Error al eliminar feriados del año ${year}`;
+      console.error(err);
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  function openNewHolidayForm() {
+    editingHoliday = null;
+    showHolidayForm = true;
+  }
+
+  function closeHolidayForm() {
+    showHolidayForm = false;
+    editingHoliday = null;
+  }
+
   function changeTab(tab: Tab) {
     activeTab = tab;
     goto(`/?tab=${tab}`, { replaceState: true });
@@ -229,6 +356,14 @@
           Vacaciones
         </button>
         <button
+          onclick={() => changeTab('holidays')}
+          class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'holidays'
+            ? 'border-blue-500 text-blue-600'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+        >
+          Feriados
+        </button>
+        <button
           onclick={() => changeTab('calendar')}
           class="py-4 px-1 border-b-2 font-medium text-sm {activeTab === 'calendar'
             ? 'border-blue-500 text-blue-600'
@@ -271,6 +406,7 @@
           <VacationForm
             vacation={editingVacation}
             {persons}
+            {holidays}
             onSubmit={handleVacationSubmit}
             onCancel={closeVacationForm}
           />
@@ -296,13 +432,46 @@
             <VacationList {vacations} onEdit={handleVacationEdit} onDelete={handleVacationDelete} />
           {/if}
         {/if}
+      {:else if activeTab === 'holidays'}
+        {#if showHolidayForm}
+          <HolidayForm
+            holiday={editingHoliday}
+            onSubmit={handleHolidaySubmit}
+            onCancel={closeHolidayForm}
+          />
+        {:else}
+          <div class="mb-4">
+            <button
+              onclick={openNewHolidayForm}
+              class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+            >
+              + Nuevo Feriado
+            </button>
+          </div>
+
+          {#if loading}
+            <div class="bg-white p-8 rounded-lg shadow-md text-center">
+              <p class="text-gray-500">Cargando...</p>
+            </div>
+          {:else}
+            <HolidayList
+              {holidays}
+              onEdit={handleHolidayEdit}
+              onDelete={handleHolidayDelete}
+              onSync={handleHolidaySync}
+              onImport={handleHolidayImport}
+              onDeleteByYear={handleHolidayDeleteByYear}
+              {isSyncing}
+            />
+          {/if}
+        {/if}
       {:else if activeTab === 'calendar'}
         {#if loading}
           <div class="bg-white p-8 rounded-lg shadow-md text-center">
             <p class="text-gray-500">Cargando...</p>
           </div>
         {:else}
-          <VacationCalendar {vacations} {persons} />
+          <VacationCalendar {vacations} {persons} {holidays} />
         {/if}
       {/if}
     </div>
