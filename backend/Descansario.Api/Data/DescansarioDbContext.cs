@@ -14,6 +14,7 @@ public class DescansarioDbContext : DbContext
     public DbSet<Vacation> Vacations { get; set; } = null!;
     public DbSet<Holiday> Holidays { get; set; } = null!;
     public DbSet<Configuration> Configurations { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -81,6 +82,36 @@ public class DescansarioDbContext : DbContext
                 FirstDayOfWeek = 1,
                 WeekendDays = "0,6",
                 DefaultCountry = Country.AR
+            }
+        );
+
+        // User configuration
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Email).IsRequired().HasMaxLength(200);
+            entity.HasIndex(u => u.Email).IsUnique();
+            entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.Name).IsRequired().HasMaxLength(200);
+            entity.Property(u => u.Role)
+                  .HasConversion<string>()
+                  .HasDefaultValue(UserRole.User);
+            entity.Property(u => u.CreatedAt)
+                  .HasDefaultValueSql("datetime('now')");
+        });
+
+        // Seed usuario admin inicial
+        // Password: "admin123" (cambiar en producción)
+        modelBuilder.Entity<User>().HasData(
+            new User
+            {
+                Id = 1,
+                Email = "admin@descansario.com",
+                // BCrypt hash de "admin123"
+                PasswordHash = "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIr.8HJZgi",
+                Name = "Administrador",
+                Role = UserRole.Admin,
+                CreatedAt = DateTime.UtcNow
             }
         );
     }
