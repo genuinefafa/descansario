@@ -240,14 +240,19 @@ app.MapGet("/api/auth/me", async (HttpContext context, DescansarioDbContext db) 
     // Debug logging
     Log.Information("GET /api/auth/me - User.Identity.IsAuthenticated: {IsAuth}", context.User.Identity?.IsAuthenticated);
     Log.Information("GET /api/auth/me - User.Claims count: {ClaimsCount}", context.User.Claims.Count());
-    Log.Information("GET /api/auth/me - Authorization header: {AuthHeader}",
-        context.Request.Headers.Authorization.FirstOrDefault() ?? "NULL");
+
+    // Listar TODOS los claims presentes
+    foreach (var claim in context.User.Claims)
+    {
+        Log.Information("  Claim: Type={Type}, Value={Value}", claim.Type, claim.Value);
+    }
 
     var userIdClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+    Log.Information("GET /api/auth/me - NameIdentifier claim: {Claim}", userIdClaim?.Value ?? "NULL");
 
     if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
     {
-        Log.Warning("GET /api/auth/me - No valid user claim found");
+        Log.Warning("GET /api/auth/me - No valid user claim found. Tried to parse: {Value}", userIdClaim?.Value ?? "NULL");
         return Results.Unauthorized();
     }
 
