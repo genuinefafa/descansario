@@ -237,10 +237,17 @@ app.MapPost("/api/auth/register", async (RegisterRequest request, AuthService au
 // GET /api/auth/me - Obtener usuario actual (requiere autenticación)
 app.MapGet("/api/auth/me", async (HttpContext context, DescansarioDbContext db) =>
 {
+    // Debug logging
+    Log.Information("GET /api/auth/me - User.Identity.IsAuthenticated: {IsAuth}", context.User.Identity?.IsAuthenticated);
+    Log.Information("GET /api/auth/me - User.Claims count: {ClaimsCount}", context.User.Claims.Count());
+    Log.Information("GET /api/auth/me - Authorization header: {AuthHeader}",
+        context.Request.Headers.Authorization.FirstOrDefault() ?? "NULL");
+
     var userIdClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
 
     if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
     {
+        Log.Warning("GET /api/auth/me - No valid user claim found");
         return Results.Unauthorized();
     }
 
