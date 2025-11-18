@@ -49,6 +49,56 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// Rate Limiting (protección contra brute force y abuso)
+builder.Services.AddMemoryCache();
+builder.Services.Configure<AspNetCoreRateLimit.IpRateLimitOptions>(options =>
+{
+    options.EnableEndpointRateLimiting = true;
+    options.StackBlockedRequests = false;
+    options.HttpStatusCode = 429; // Too Many Requests
+    options.RealIpHeader = "X-Real-IP";
+    options.ClientIdHeader = "X-ClientId";
+
+    // Reglas generales
+    options.GeneralRules = new List<AspNetCoreRateLimit.RateLimitRule>
+    {
+        // Límite global: 100 requests por minuto por IP
+        new AspNetCoreRateLimit.RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1m",
+            Limit = 100
+        },
+        // Protección anti brute-force en login: 10 intentos por minuto
+        new AspNetCoreRateLimit.RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/login",
+            Period = "1m",
+            Limit = 10
+        },
+        // Prevenir spam de registros: 5 registros por hora
+        new AspNetCoreRateLimit.RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/register",
+            Period = "1h",
+            Limit = 5
+        },
+        // Limitar sync de feriados (operación costosa): 5 por hora
+        new AspNetCoreRateLimit.RateLimitRule
+        {
+            Endpoint = "POST:/api/holidays/sync",
+            Period = "1h",
+            Limit = 5
+        }
+    };
+});
+
+builder.Services.AddSingleton<AspNetCoreRateLimit.IIpPolicyStore, AspNetCoreRateLimit.MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<AspNetCoreRateLimit.IRateLimitCounterStore, AspNetCoreRateLimit.MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<AspNetCoreRateLimit.IRateLimitConfiguration, AspNetCoreRateLimit.RateLimitConfiguration>();
+builder.Services.AddSingleton<AspNetCoreRateLimit.IProcessingStrategy, AspNetCoreRateLimit.AsyncKeyLockProcessingStrategy>();
+builder.Services.AddInMemoryRateLimiting();
+
 // CORS para desarrollo
 builder.Services.AddCors(options =>
 {
@@ -90,6 +140,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
+
+// Rate Limiting (ANTES de auth para bloquear requests abusivas temprano)
+app.UseIpRateLimiting();
 
 // Authentication & Authorization (IMPORTANTE: orden correcto)
 app.UseAuthentication();
