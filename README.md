@@ -179,18 +179,35 @@ _(Próximamente)_
 
 ## 📝 Estado del Proyecto
 
-**Fase actual**: Setup inicial
+**Fase actual**: Fase 5 - Auth y Deploy (Fases 1-4 completas)
 
-- [x] Estructura de carpetas
-- [x] Configuración Docker
-- [ ] Backend base (.NET 8)
-- [ ] Frontend base (SvelteKit)
-- [ ] CRUD de personas
-- [ ] Calendario básico
-- [ ] Cálculo de días hábiles
-- [ ] Sistema de feriados
-- [ ] Autenticación
+**Completado (95%):**
+- [x] Backend API completo (.NET 8 - 27 endpoints)
+- [x] Frontend completo (SvelteKit 5)
+- [x] CRUD de personas
+- [x] CRUD de vacaciones
+- [x] Calendario continuo con scroll infinito
+- [x] Cálculo de días hábiles (automático)
+- [x] Sistema de feriados (Argentina con sync API)
+- [x] Docker + Docker Compose para desarrollo
+
+**En Progreso:**
+- [ ] Autenticación JWT
+- [ ] HTTPS y deploy público
+- [ ] Rate limiting
+- [ ] Backups automáticos
+- [ ] Monitoreo y logs
+
+**No prioritario (LAN):**
 - [ ] Exportación iCal
+- [ ] Importación feriados España
+
+**📖 Documentación:**
+- [ESPECIFICACIONES.md](docs/ESPECIFICACIONES.md) - Features y diseño completo
+- [ROADMAP.md](docs/ROADMAP.md) - **Plan detallado para deploy público**
+- [SECURITY.md](docs/SECURITY.md) - Checklist de seguridad
+- [MIGRACIONES.md](docs/MIGRACIONES.md) - Guía de migraciones EF Core
+- [DEVELOPMENT.md](frontend/DEVELOPMENT.md) - Guía de desarrollo frontend
 
 ## 🤝 Contribuir
 

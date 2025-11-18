@@ -231,35 +231,43 @@ descansario/
 
 ## 🚀 Fases de Implementación
 
-### Fase 1: Setup y Base (Semana 1)
+### Fase 1: Setup y Base ✅ **COMPLETA**
 - [x] Setup proyecto (SvelteKit + .NET)
 - [x] Configuración Docker
-- [ ] Base de datos SQLite + modelos
-- [ ] Estructura básica del calendario
+- [x] Base de datos SQLite + modelos
+- [x] Estructura básica del calendario
 
-### Fase 2: Calendario Core (Semana 2)
-- [ ] Vista de semanas con scroll infinito
-- [ ] Renderizado de slots conectados
-- [ ] Configuración de primer día de semana
-- [ ] Ocultar semanas vacías
+### Fase 2: Calendario Core ✅ **COMPLETA**
+- [x] Vista de semanas con scroll infinito (sutil, hacia abajo)
+- [x] Renderizado de slots conectados (vacaciones consecutivas se extienden visualmente)
+- [x] Configuración de primer día de semana (configurable, default: lunes)
+- [x] Botón para cargar histórico (opcional, evita scroll infinito hacia arriba)
+- ~~Ocultar semanas vacías~~ (descartado: confunde posicionamiento de meses con rowspan)
 
-### Fase 3: CRUD y Lógica (Semana 3)
-- [ ] CRUD de personas
-- [ ] CRUD de vacaciones
-- [ ] Cálculo de días hábiles
-- [ ] Validaciones
+### Fase 3: CRUD y Lógica ✅ **COMPLETA**
+- [x] CRUD de personas
+- [x] CRUD de vacaciones
+- [x] Cálculo de días hábiles (WorkingDaysCalculator)
+- [x] Validaciones
 
-### Fase 4: Feriados y API (Semana 4)
-- [ ] Gestión de feriados
-- [ ] Importación automática (AR/ES)
-- [ ] API REST completa
-- [ ] Exportación iCal
+### Fase 4: Feriados y API ✅ **COMPLETA (95%)**
+- [x] Gestión de feriados
+- [x] Importación automática Argentina (desde ArgentinaDatos API)
+- [x] Seeds locales Argentina 2025-2026 (36 feriados)
+- [x] API REST completa (27 endpoints)
+- [ ] Importación automática España (placeholder)
+- [ ] Exportación iCal (no prioritario para LAN)
 
-### Fase 5: Auth y Deploy (Semana 5)
-- [ ] Sistema de autenticación
-- [ ] Testing en Pi5
+### Fase 5: Auth y Deploy 🔄 **EN PROGRESO**
+- [ ] Sistema de autenticación JWT
+- [ ] HTTPS con Caddy
+- [ ] Rate limiting
+- [ ] Deploy en VM Debian
+- [ ] Backups automáticos
 - [ ] Optimización de performance
-- [ ] Documentación
+- [ ] Documentación de usuario
+
+**Ver `docs/ROADMAP.md` para plan detallado de Fase 5.**
 
 ---
 
