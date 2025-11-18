@@ -191,7 +191,7 @@
     {#if startDate && endDate}
       <div class="bg-green-50 border border-green-200 px-4 py-3 rounded">
         <p class="font-semibold text-sm text-green-900 mb-1">
-          Días hábiles estimados: <span class="text-lg">{estimatedWorkingDays()}</span>
+          Días hábiles estimados: <span class="text-lg">{estimatedWorkingDays}</span>
         </p>
         <p class="text-xs text-green-700">
           (excluye fines de semana y feriados)
