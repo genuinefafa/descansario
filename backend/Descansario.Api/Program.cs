@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Serilog;
+using AspNetCoreRateLimit;
 using Descansario.Api.Data;
 using Descansario.Api.Models;
 using Descansario.Api.DTOs;
@@ -68,7 +69,7 @@ builder.Services.AddAuthorization();
 
 // Rate Limiting (protección contra brute force y abuso)
 builder.Services.AddMemoryCache();
-builder.Services.Configure<AspNetCoreRateLimit.IpRateLimitOptions>(options =>
+builder.Services.Configure<IpRateLimitOptions>(options =>
 {
     options.EnableEndpointRateLimiting = true;
     options.StackBlockedRequests = false;
@@ -77,31 +78,31 @@ builder.Services.Configure<AspNetCoreRateLimit.IpRateLimitOptions>(options =>
     options.ClientIdHeader = "X-ClientId";
 
     // Reglas generales
-    options.GeneralRules = new List<AspNetCoreRateLimit.RateLimitRule>
+    options.GeneralRules = new List<RateLimitRule>
     {
         // Límite global: 100 requests por minuto por IP
-        new AspNetCoreRateLimit.RateLimitRule
+        new RateLimitRule
         {
             Endpoint = "*",
             Period = "1m",
             Limit = 100
         },
         // Protección anti brute-force en login: 10 intentos por minuto
-        new AspNetCoreRateLimit.RateLimitRule
+        new RateLimitRule
         {
             Endpoint = "POST:/api/auth/login",
             Period = "1m",
             Limit = 10
         },
         // Prevenir spam de registros: 5 registros por hora
-        new AspNetCoreRateLimit.RateLimitRule
+        new RateLimitRule
         {
             Endpoint = "POST:/api/auth/register",
             Period = "1h",
             Limit = 5
         },
         // Limitar sync de feriados (operación costosa): 5 por hora
-        new AspNetCoreRateLimit.RateLimitRule
+        new RateLimitRule
         {
             Endpoint = "POST:/api/holidays/sync",
             Period = "1h",
@@ -110,11 +111,10 @@ builder.Services.Configure<AspNetCoreRateLimit.IpRateLimitOptions>(options =>
     };
 });
 
-builder.Services.AddSingleton<AspNetCoreRateLimit.IIpPolicyStore, AspNetCoreRateLimit.MemoryCacheIpPolicyStore>();
-builder.Services.AddSingleton<AspNetCoreRateLimit.IRateLimitCounterStore, AspNetCoreRateLimit.MemoryCacheRateLimitCounterStore>();
-builder.Services.AddSingleton<AspNetCoreRateLimit.IRateLimitConfiguration, AspNetCoreRateLimit.RateLimitConfiguration>();
-builder.Services.AddSingleton<AspNetCoreRateLimit.IProcessingStrategy, AspNetCoreRateLimit.AsyncKeyLockProcessingStrategy>();
-builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 
 // CORS para desarrollo
 builder.Services.AddCors(options =>
@@ -159,7 +159,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowFrontend");
 
 // Rate Limiting (ANTES de auth para bloquear requests abusivas temprano)
-app.UseIpRateLimiting();
+app.UseMiddleware<IpRateLimitMiddleware>();
 
 // Authentication & Authorization (IMPORTANTE: orden correcto)
 app.UseAuthentication();
