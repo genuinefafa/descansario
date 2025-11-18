@@ -46,6 +46,9 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddHttpClient();
 
 // JWT Authentication
+// Desactivar mapeo automático de claims (evita duplicados de NameIdentifier)
+System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "descansario-api";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "descansario-web";
@@ -63,28 +66,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ClockSkew = TimeSpan.Zero // No agregar tiempo extra de tolerancia
-        };
-
-        // Eventos para debugging
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                Log.Error("JWT Authentication failed: {Exception}", context.Exception);
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = context =>
-            {
-                Log.Information("JWT Token validated successfully for user: {UserId}",
-                    context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Unknown");
-                return Task.CompletedTask;
-            },
-            OnChallenge = context =>
-            {
-                Log.Warning("JWT Authentication challenge: {Error} - {ErrorDescription}",
-                    context.Error, context.ErrorDescription);
-                return Task.CompletedTask;
-            }
         };
     });
 
@@ -237,22 +218,10 @@ app.MapPost("/api/auth/register", async (RegisterRequest request, AuthService au
 // GET /api/auth/me - Obtener usuario actual (requiere autenticación)
 app.MapGet("/api/auth/me", async (HttpContext context, DescansarioDbContext db) =>
 {
-    // Debug logging
-    Log.Information("GET /api/auth/me - User.Identity.IsAuthenticated: {IsAuth}", context.User.Identity?.IsAuthenticated);
-    Log.Information("GET /api/auth/me - User.Claims count: {ClaimsCount}", context.User.Claims.Count());
-
-    // Listar TODOS los claims presentes
-    foreach (var claim in context.User.Claims)
-    {
-        Log.Information("  Claim: Type={Type}, Value={Value}", claim.Type, claim.Value);
-    }
-
     var userIdClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-    Log.Information("GET /api/auth/me - NameIdentifier claim: {Claim}", userIdClaim?.Value ?? "NULL");
 
     if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
     {
-        Log.Warning("GET /api/auth/me - No valid user claim found. Tried to parse: {Value}", userIdClaim?.Value ?? "NULL");
         return Results.Unauthorized();
     }
 
