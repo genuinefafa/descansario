@@ -970,6 +970,67 @@ app.MapDelete("/api/holidays/year/{year:int}", async (int year, DescansarioDbCon
 .WithTags("Holidays")
 .RequireAuthorization();
 
+// ==============================================================
+// Calendar Endpoints
+// ==============================================================
+
+// GET /api/calendar/summary - Resumen de días hábiles por persona en un rango
+app.MapGet("/api/calendar/summary", async (DateTime startDate, DateTime endDate, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
+{
+    // Validar fechas
+    if (startDate > endDate)
+    {
+        return Results.BadRequest(new { message = "La fecha de inicio debe ser anterior o igual a la fecha de fin" });
+    }
+
+    // Obtener todas las personas con sus vacaciones
+    var persons = await db.Persons
+        .Include(p => p.Vacations.Where(v => v.Status == VacationStatus.Approved))
+        .ToListAsync();
+
+    // Helper local: calcular días hábiles en la intersección de una vacación con el rango solicitado
+    async Task<int> CalculateWorkingDaysInRangeAsync(Vacation vacation, DateTime rangeStart, DateTime rangeEnd)
+    {
+        // Calcular la intersección entre la vacación y el rango solicitado
+        var effectiveStart = vacation.StartDate > rangeStart ? vacation.StartDate : rangeStart;
+        var effectiveEnd = vacation.EndDate < rangeEnd ? vacation.EndDate : rangeEnd;
+
+        // Si no hay intersección, retornar 0
+        if (effectiveStart > effectiveEnd)
+            return 0;
+
+        // Usar el WorkingDaysCalculator para calcular días hábiles en la intersección
+        return await calculator.CalculateWorkingDaysAsync(effectiveStart, effectiveEnd);
+    }
+
+    // Calcular resumen para cada persona
+    var summaryTasks = persons.Select(async p => new
+    {
+        PersonId = p.Id,
+        PersonName = p.Name,
+        WorkingDaysInRange = await Task.WhenAll(
+            p.Vacations
+                .Where(v => v.Status == VacationStatus.Approved &&
+                           v.StartDate <= endDate &&
+                           v.EndDate >= startDate)
+                .Select(v => CalculateWorkingDaysInRangeAsync(v, startDate, endDate))
+        ).ContinueWith(t => t.Result.Sum()),
+        AvailableDays = p.AvailableDays
+    });
+
+    var summary = await Task.WhenAll(summaryTasks);
+
+    // Ordenar por días hábiles (mayor a menor)
+    var sortedSummary = summary
+        .OrderByDescending(x => x.WorkingDaysInRange)
+        .ToList();
+
+    return Results.Ok(sortedSummary);
+})
+.WithName("GetCalendarSummary")
+.WithTags("Calendar")
+.RequireAuthorization();
+
 try
 {
     Log.Information("Iniciando Descansario API");
