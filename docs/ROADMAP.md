@@ -1,7 +1,7 @@
 # 🗺️ Roadmap - Descansario
 
 **Última actualización:** 2025-11-19
-**Estado actual:** Sistema base completo, listo para features de productividad
+**Estado actual:** Sprint 1 completado - Vinculación User ↔ Person funcionando
 
 ---
 
@@ -21,6 +21,7 @@
 - ✅ **Rate limiting con AspNetCoreRateLimit**
 - ✅ **Logging estructurado con Serilog**
 - ✅ **Protección de endpoints con [Authorize]**
+- ✅ **Vinculación User ↔ Person con auto-registro por email**
 
 **Frontend:**
 - ✅ SvelteKit 5 + TypeScript + TailwindCSS
@@ -30,9 +31,11 @@
 - ✅ Cálculo automático de días hábiles
 - ✅ Interfaz por tabs (Personas, Vacaciones, Feriados, Calendario)
 - ✅ **Página de login con autenticación**
+- ✅ **Página de registro con auto-vinculación**
 - ✅ **Servicio y store de autenticación**
 - ✅ **Protección de rutas con guards**
 - ✅ **Auto-logout en 401**
+- ✅ **Indicador visual de vinculación User ↔ Person**
 
 **DevOps:**
 - ✅ Docker + Docker Compose para desarrollo
@@ -59,7 +62,26 @@ Este roadmap se enfoca en **agregar funcionalidades de productividad** que trans
 
 ---
 
-## 🚀 Sprint 1: Vinculación User ↔ Person (1-2 días)
+## ✅ Sprint 1: Vinculación User ↔ Person (COMPLETADO)
+
+**Estado:** ✅ Completado el 2025-11-19
+**Branch:** `claude/start-sprint-1-01Dk9sUqHHGVAx7ASbLJCtjT`
+**Commits:** 4 commits
+
+### 🎉 Logros
+- ✅ Auto-vinculación User ↔ Person por email funcionando
+- ✅ Página de registro completa con validaciones
+- ✅ Badges visuales de vinculación en dashboard
+- ✅ Migración de base de datos implementada
+- ✅ Testing manual exitoso
+
+### 📦 Archivos modificados
+- Backend: `User.cs`, `AuthService.cs`, `Program.cs`, migración
+- Frontend: `auth.ts`, `+page.svelte`, `register/+page.svelte`, `login/+page.svelte`
+
+---
+
+## 🚀 Sprint 1: Vinculación User ↔ Person (DETALLES TÉCNICOS)
 
 ### Objetivo
 Unificar la autenticación (User) con la gestión de vacaciones (Person), permitiendo registro automático por email.
@@ -215,13 +237,17 @@ app.MapGet("/api/auth/me", async (HttpContext ctx, DescansarioDbContext db) =>
 
 ### Checklist
 
-- [ ] Agregar `PersonId` nullable a modelo User
-- [ ] Crear migración `LinkUserToPerson`
-- [ ] Modificar `RegisterAsync` para auto-vinculación por email
-- [ ] Actualizar endpoint `/api/auth/me` para incluir Person
-- [ ] Testing: crear Person, registrar User con mismo email
-- [ ] Verificar que auto-vincula correctamente
-- [ ] Actualizar frontend para mostrar estado de vinculación
+- [x] Agregar `PersonId` nullable a modelo User
+- [x] Crear migración `LinkUserToPerson`
+- [x] Modificar `RegisterAsync` para auto-vinculación por email
+- [x] Actualizar endpoint `/api/auth/me` para incluir Person
+- [x] Testing: crear Person, registrar User con mismo email
+- [x] Verificar que auto-vincula correctamente
+- [x] Actualizar frontend para mostrar estado de vinculación
+- [x] Crear página de registro `/register`
+- [x] Agregar link desde login a registro
+
+**Estado:** ✅ **COMPLETADO** (2025-11-19)
 
 ### Testing Manual
 
