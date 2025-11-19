@@ -22,6 +22,7 @@
   import type { Vacation } from '$lib/types/vacation';
   import type { Person } from '$lib/types/person';
   import type { Holiday } from '$lib/types/holiday';
+  import CalendarSummary from './CalendarSummary.svelte';
 
   interface Props {
     vacations: Vacation[];
@@ -48,7 +49,7 @@
   // Helper para encontrar feriado en una fecha
   function getHolidayForDate(date: Date): Holiday | undefined {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return holidays.find(h => {
+    return holidays.find((h) => {
       const holidayDate = format(parseISO(h.date), 'yyyy-MM-dd');
       return holidayDate === dateStr;
     });
@@ -59,6 +60,17 @@
   let months = $state<Date[]>([]);
   let allWeeks = $derived(generateAllWeeks());
   let bottomSentinel: HTMLDivElement;
+
+  // Calculate visible date range for CalendarSummary
+  let visibleStartDate = $derived(() => {
+    if (months.length === 0) return today;
+    return startOfMonth(months[0]);
+  });
+
+  let visibleEndDate = $derived(() => {
+    if (months.length === 0) return today;
+    return endOfMonth(months[months.length - 1]);
+  });
 
   // Initialize with current month onwards
   function initializeMonths() {
@@ -132,13 +144,13 @@
           firstDayWeekIndices.push(weekIndex);
 
           // Calculate rowspan: from this week until the week before the next "day 1" week
-          const nextFirstDayIndex = firstDayWeekIndices.length > 0
-            ? allWeeks.findIndex((w, idx) => idx > weekIndex && w.some(d => d.getDate() === 1))
-            : -1;
+          const nextFirstDayIndex =
+            firstDayWeekIndices.length > 0
+              ? allWeeks.findIndex((w, idx) => idx > weekIndex && w.some((d) => d.getDate() === 1))
+              : -1;
 
-          const weeksInMonth = nextFirstDayIndex === -1
-            ? allWeeks.length - weekIndex
-            : nextFirstDayIndex - weekIndex;
+          const weeksInMonth =
+            nextFirstDayIndex === -1 ? allWeeks.length - weekIndex : nextFirstDayIndex - weekIndex;
 
           allWeekRows[weekIndex].monthLabel = {
             monthDate: startOfMonth(firstDayInWeek),
@@ -282,11 +294,11 @@
         // Si hay días en medio, verificar que TODOS sean weekends (no feriados)
         const daysBetween = eachDayOfInterval({
           start: addDays(prevDay, 1),
-          end: addDays(currentDay, -1)
+          end: addDays(currentDay, -1),
         });
 
         // Solo continuar el segmento si los días intermedios son SOLO weekends
-        const allIntermediateAreWeekends = daysBetween.every(day => isWeekend(day));
+        const allIntermediateAreWeekends = daysBetween.every((day) => isWeekend(day));
 
         if (allIntermediateAreWeekends) {
           // Continuar el segmento (solo hay weekends en medio)
@@ -389,6 +401,9 @@
   });
 </script>
 
+<!-- Calendar Summary Component -->
+<CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} />
+
 <div class="bg-white rounded-lg shadow-md p-6">
   <!-- Calendar Header -->
   <div class="flex items-center justify-between mb-6">
@@ -425,18 +440,21 @@
 
   <!-- Calendar Container (using browser scroll) -->
   <div class="border border-gray-200 rounded-lg">
-
     <!-- Continuous Calendar Table -->
     <table class="w-full border-collapse">
       <!-- Day headers - shown once at the top -->
       <thead class="sticky top-0 bg-gray-50 z-10">
         <tr>
           {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
-            <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-gray-200">
+            <th
+              class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-gray-200"
+            >
               {day}
             </th>
           {/each}
-          <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-l border-gray-200 w-20">
+          <th
+            class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-l border-gray-200 w-20"
+          >
             Mes
           </th>
         </tr>
@@ -459,7 +477,9 @@
                     {@const isDayInVisibleMonths = months.some((m) => isSameMonth(m, dayMonth))}
                     {@const holiday = getHolidayForDate(day)}
                     <div
-                      class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth ? 'border-l-2 border-l-gray-900' : ''} {isDayInVisibleMonths
+                      class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth
+                        ? 'border-l-2 border-l-gray-900'
+                        : ''} {isDayInVisibleMonths
                         ? holiday
                           ? 'bg-amber-50'
                           : isWeekendDay
@@ -468,7 +488,13 @@
                         : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
                       title={holiday ? `Feriado: ${holiday.name}` : ''}
                     >
-                      <div class="text-xs {isFirstOfMonth ? 'font-bold' : 'font-medium'} {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
+                      <div
+                        class="text-xs {isFirstOfMonth
+                          ? 'font-bold'
+                          : 'font-medium'} {isDayInVisibleMonths
+                          ? 'text-gray-900'
+                          : 'text-gray-400'}"
+                      >
                         {#if isFirstOfMonth}
                           {format(day, 'd MMM', { locale: es })}
                         {:else}
@@ -476,8 +502,13 @@
                         {/if}
                       </div>
                       {#if holiday}
-                        <div class="text-[10px] text-red-600 font-semibold leading-tight mt-0.5" title={holiday.name}>
-                          {holiday.name.length > 15 ? holiday.name.substring(0, 15) + '...' : holiday.name}
+                        <div
+                          class="text-[10px] text-red-600 font-semibold leading-tight mt-0.5"
+                          title={holiday.name}
+                        >
+                          {holiday.name.length > 15
+                            ? holiday.name.substring(0, 15) + '...'
+                            : holiday.name}
                         </div>
                       {/if}
                     </div>
@@ -494,7 +525,8 @@
                         class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
                           ? ''
                           : getPersonColor(segment.person.id)}"
-                        style="grid-column: {segment.startCol + 1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
+                        style="grid-column: {segment.startCol +
+                          1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
                           ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
                           : ''}"
                         title="{segment.person.name} - {segment.vacation.status}"
@@ -518,7 +550,11 @@
                   ? 'bg-blue-50'
                   : ''}"
               >
-                <div class="writing-mode-vertical text-sm font-bold {isCurrentMonth ? 'text-blue-600' : 'text-gray-700'} capitalize py-2">
+                <div
+                  class="writing-mode-vertical text-sm font-bold {isCurrentMonth
+                    ? 'text-blue-600'
+                    : 'text-gray-700'} capitalize py-2"
+                >
                   {format(weekRow.monthLabel.monthDate, 'MMMM yyyy', { locale: es })}
                 </div>
               </td>

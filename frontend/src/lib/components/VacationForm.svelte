@@ -36,7 +36,7 @@
     const start = parseISO(startDate + 'T00:00:00');
     const end = parseISO(endDate + 'T23:59:59');
 
-    return holidays.filter(h => {
+    return holidays.filter((h) => {
       const holidayDate = parseISO(h.date);
       return holidayDate >= start && holidayDate <= end;
     });
@@ -53,8 +53,9 @@
     }
 
     // Llamar al backend para obtener el cálculo exacto
-    vacationsService.calculateWorkingDays(startDate, endDate)
-      .then(days => {
+    vacationsService
+      .calculateWorkingDays(startDate, endDate)
+      .then((days) => {
         estimatedWorkingDays = days;
       })
       .catch(() => {
@@ -122,12 +123,13 @@
   // Verificar solapamiento de vacaciones
   $effect(() => {
     if (startDate && endDate) {
-      vacationsService.getOverlapping(startDate, endDate)
-        .then(vacations => {
+      vacationsService
+        .getOverlapping(startDate, endDate)
+        .then((vacations) => {
           // Filtrar la vacación actual si estamos editando
-          overlappingVacations = vacations.filter(v => v.id !== vacation?.id);
+          overlappingVacations = vacations.filter((v) => v.id !== vacation?.id);
         })
-        .catch(err => {
+        .catch((err) => {
           console.error('Error checking overlapping vacations:', err);
         });
     } else {
@@ -193,9 +195,7 @@
         <p class="font-semibold text-sm text-green-900 mb-1">
           Días hábiles estimados: <span class="text-lg">{estimatedWorkingDays}</span>
         </p>
-        <p class="text-xs text-green-700">
-          (excluye fines de semana y feriados)
-        </p>
+        <p class="text-xs text-green-700">(excluye fines de semana y feriados)</p>
       </div>
     {/if}
 
@@ -220,7 +220,9 @@
         <ul class="text-sm space-y-1">
           {#each overlappingVacations as overlap}
             <li>
-              • {overlap.personName} ({new Date(overlap.startDate).toLocaleDateString('es-AR')} - {new Date(overlap.endDate).toLocaleDateString('es-AR')})
+              • {overlap.personName} ({new Date(overlap.startDate).toLocaleDateString('es-AR')} - {new Date(
+                overlap.endDate
+              ).toLocaleDateString('es-AR')})
             </li>
           {/each}
         </ul>
