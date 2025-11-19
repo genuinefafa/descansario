@@ -513,7 +513,7 @@
             <p class="text-gray-500">Cargando...</p>
           </div>
         {:else}
-          <VacationCalendar {vacations} {persons} {holidays} />
+          <VacationCalendar {vacations} {persons} {holidays} onEditVacation={handleVacationEdit} />
         {/if}
       {/if}
     </div>

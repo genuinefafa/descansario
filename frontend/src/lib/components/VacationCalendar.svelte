@@ -23,11 +23,13 @@
   import type { Person } from '$lib/types/person';
   import type { Holiday } from '$lib/types/holiday';
   import CalendarSummary from './CalendarSummary.svelte';
+  import VacationDetailsModal from './VacationDetailsModal.svelte';
 
   interface Props {
     vacations: Vacation[];
     persons: Person[];
     holidays: Holiday[];
+    onEditVacation?: (vacation: Vacation) => void;
   }
 
   interface VacationSegment {
@@ -44,7 +46,10 @@
     monthLabel?: { monthDate: Date; weeksInMonth: number };
   }
 
-  let { vacations, persons, holidays }: Props = $props();
+  let { vacations, persons, holidays, onEditVacation }: Props = $props();
+
+  // Estado del modal
+  let selectedVacation = $state<Vacation | null>(null);
 
   // Helper para encontrar feriado en una fecha
   function getHolidayForDate(date: Date): Holiday | undefined {
@@ -404,6 +409,24 @@
     }
   }
 
+  // Abrir modal de vacación
+  function openVacationModal(vacation: Vacation) {
+    selectedVacation = vacation;
+  }
+
+  // Cerrar modal
+  function closeVacationModal() {
+    selectedVacation = null;
+  }
+
+  // Manejar edición desde el modal
+  function handleEditFromModal(vacation: Vacation) {
+    closeVacationModal();
+    if (onEditVacation) {
+      onEditVacation(vacation);
+    }
+  }
+
   // Generate month anchor ID (formato: mes-año, ej: "noviembre-2025")
   function getMonthAnchor(monthDate: Date): string {
     return format(monthDate, 'MMMM-yyyy', { locale: es }).toLowerCase();
@@ -563,18 +586,22 @@
                     {#each segments as segment}
                       {@const isPending = segment.vacation.status === 'Pending'}
                       {@const baseColor = getPersonColorValue(segment.person.id)}
-                      <div
+                      <button
+                        onclick={() => openVacationModal(segment.vacation)}
                         class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
                           ? ''
-                          : getPersonColor(segment.person.id)}"
+                          : getPersonColor(
+                              segment.person.id
+                            )} cursor-pointer hover:opacity-90 transition-opacity"
                         style="grid-column: {segment.startCol +
                           1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
                           ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
                           : ''}"
-                        title="{segment.person.name} - {segment.vacation.status}"
+                        title="{segment.person.name} - {segment.vacation
+                          .status} (click para detalles)"
                       >
                         {segment.person.name.split(' ')[0]}
-                      </div>
+                      </button>
                     {/each}
                   </div>
                 </div>
@@ -610,6 +637,13 @@
     <div bind:this={bottomSentinel} class="h-1"></div>
   </div>
 </div>
+
+<!-- Modal de detalles de vacación -->
+<VacationDetailsModal
+  vacation={selectedVacation}
+  onClose={closeVacationModal}
+  onEdit={onEditVacation ? handleEditFromModal : undefined}
+/>
 
 <style>
   .writing-mode-vertical {
