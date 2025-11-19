@@ -207,6 +207,9 @@
       {#each summary as person (person.personId)}
         {@const isExpanded = expandedPersonIds.has(person.personId)}
         {@const personVacations = getPersonVacationsInRange(person.personId)}
+        {@const lastYearPerson = showComparison
+          ? lastYearSummary.find((p) => p.personId === person.personId)
+          : null}
         <div class="person-summary border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
           <!-- Header clickeable -->
           <button
@@ -228,7 +231,7 @@
               </span>
             </div>
 
-            <!-- Barra de progreso -->
+            <!-- Barra de progreso actual -->
             <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
               <div
                 class={`h-3 rounded-full transition-all duration-300 ${getProgressBarColor(person.workingDaysInRange, person.availableDays)}`}
@@ -246,6 +249,29 @@
               </span>
             </div>
           </button>
+
+          <!-- Barra año anterior (justo debajo) -->
+          {#if showComparison && lastYearPerson}
+            <div class="mt-2 px-2">
+              <div class="text-[10px] text-gray-500 mb-1">Año anterior (mismo período)</div>
+              <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden opacity-60">
+                <div
+                  class={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(lastYearPerson.workingDaysInRange, lastYearPerson.availableDays)}`}
+                  style="width: {getProgressWidth(
+                    lastYearPerson.workingDaysInRange,
+                    lastYearPerson.availableDays
+                  )}%"
+                ></div>
+              </div>
+              <div class="mt-0.5 text-[10px] text-gray-500">
+                {lastYearPerson.workingDaysInRange}
+                {lastYearPerson.workingDaysInRange === 1 ? 'día hábil' : 'días hábiles'} ({getProgressWidth(
+                  lastYearPerson.workingDaysInRange,
+                  lastYearPerson.availableDays
+                ).toFixed(1)}%)
+              </div>
+            </div>
+          {/if}
 
           <!-- Detalles expandibles -->
           {#if isExpanded && personVacations.length > 0}
@@ -280,63 +306,11 @@
     </div>
   {/if}
 
-  <!-- Comparativa con año anterior -->
-  {#if showComparison}
-    <div class="mt-6 pt-6 border-t border-gray-200">
-      <h4 class="text-md font-semibold mb-3 text-gray-600 flex items-center gap-2">
-        <span>📊</span>
-        <span>Mismo período año anterior</span>
-        <span class="text-xs font-normal">
-          ({format(subYears(startDate, 1), 'd MMM', { locale: es })} - {format(
-            subYears(endDate, 1),
-            'd MMM yyyy',
-            { locale: es }
-          )})
-        </span>
-      </h4>
-
-      {#if loadingLastYear}
-        <div class="flex items-center justify-center py-4">
-          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400"></div>
-          <span class="ml-2 text-sm text-gray-500">Cargando comparativa...</span>
-        </div>
-      {:else if lastYearSummary.length === 0}
-        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-600">
-          <p class="text-xs">No hay datos del año anterior para este período</p>
-        </div>
-      {:else}
-        <div class="space-y-3 opacity-75">
-          {#each lastYearSummary as person (person.personId)}
-            <div class="person-summary-last-year bg-gray-50 rounded-md p-3 border border-gray-200">
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="font-medium text-gray-700 text-sm">{person.personName}</span>
-                <span
-                  class={`text-xs font-bold ${getUsageColor(person.workingDaysInRange, person.availableDays)}`}
-                >
-                  {person.workingDaysInRange}
-                  {person.workingDaysInRange === 1 ? 'día hábil' : 'días hábiles'}
-                </span>
-              </div>
-
-              <!-- Barra de progreso más pequeña -->
-              <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div
-                  class={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(person.workingDaysInRange, person.availableDays)}`}
-                  style="width: {getProgressWidth(
-                    person.workingDaysInRange,
-                    person.availableDays
-                  )}%"
-                ></div>
-              </div>
-
-              <div class="mt-1 text-xs text-gray-500">
-                {getProgressWidth(person.workingDaysInRange, person.availableDays).toFixed(1)}%
-                utilizado
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
+  <!-- Loading indicator para comparativa -->
+  {#if showComparison && loadingLastYear}
+    <div class="mt-4 flex items-center justify-center py-2 bg-gray-50 rounded-lg">
+      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+      <span class="ml-2 text-xs text-gray-500">Cargando comparativa...</span>
     </div>
   {/if}
 </div>

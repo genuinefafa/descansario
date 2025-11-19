@@ -23,7 +23,7 @@
   import type { Person } from '$lib/types/person';
   import type { Holiday } from '$lib/types/holiday';
   import CalendarSummary from './CalendarSummary.svelte';
-  import VacationDetailsModal from './VacationDetailsModal.svelte';
+  import VacationTooltip from './VacationTooltip.svelte';
 
   interface Props {
     vacations: Vacation[];
@@ -48,8 +48,9 @@
 
   let { vacations, persons, holidays, onEditVacation }: Props = $props();
 
-  // Estado del modal
+  // Estado del tooltip
   let selectedVacation = $state<Vacation | null>(null);
+  let tooltipPosition = $state<{ x: number; y: number } | null>(null);
 
   // Helper para encontrar feriado en una fecha
   function getHolidayForDate(date: Date): Holiday | undefined {
@@ -409,19 +410,21 @@
     }
   }
 
-  // Abrir modal de vacación
-  function openVacationModal(vacation: Vacation) {
+  // Abrir tooltip de vacación
+  function openVacationTooltip(vacation: Vacation, event: MouseEvent) {
     selectedVacation = vacation;
+    tooltipPosition = { x: event.clientX, y: event.clientY };
   }
 
-  // Cerrar modal
-  function closeVacationModal() {
+  // Cerrar tooltip
+  function closeVacationTooltip() {
     selectedVacation = null;
+    tooltipPosition = null;
   }
 
-  // Manejar edición desde el modal
-  function handleEditFromModal(vacation: Vacation) {
-    closeVacationModal();
+  // Manejar edición desde el tooltip
+  function handleEditFromTooltip(vacation: Vacation) {
+    closeVacationTooltip();
     if (onEditVacation) {
       onEditVacation(vacation);
     }
@@ -587,8 +590,8 @@
                       {@const isPending = segment.vacation.status === 'Pending'}
                       {@const baseColor = getPersonColorValue(segment.person.id)}
                       <button
-                        onclick={() => openVacationModal(segment.vacation)}
-                        class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
+                        onclick={(e) => openVacationTooltip(segment.vacation, e)}
+                        class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate text-left {isPending
                           ? ''
                           : getPersonColor(
                               segment.person.id
@@ -638,11 +641,12 @@
   </div>
 </div>
 
-<!-- Modal de detalles de vacación -->
-<VacationDetailsModal
+<!-- Tooltip de detalles de vacación -->
+<VacationTooltip
   vacation={selectedVacation}
-  onClose={closeVacationModal}
-  onEdit={onEditVacation ? handleEditFromModal : undefined}
+  position={tooltipPosition}
+  onClose={closeVacationTooltip}
+  onEdit={onEditVacation ? handleEditFromTooltip : undefined}
 />
 
 <style>
