@@ -2,17 +2,34 @@
   import { onMount } from 'svelte';
   import { calendarService } from '$lib/services/calendar';
   import type { CalendarSummary } from '$lib/types/calendar';
+  import type { Vacation } from '$lib/types/vacation';
+  import {
+    parseISO,
+    differenceInCalendarDays,
+    format,
+    max,
+    min,
+    startOfYear,
+    endOfYear,
+    subYears,
+  } from 'date-fns';
+  import { es } from 'date-fns/locale';
 
   interface Props {
     startDate: Date;
     endDate: Date;
+    vacations: Vacation[]; // Para detectar cambios y refrescar
   }
 
-  let { startDate, endDate }: Props = $props();
+  let { startDate, endDate, vacations }: Props = $props();
 
   let summary = $state<CalendarSummary[]>([]);
+  let lastYearSummary = $state<CalendarSummary[]>([]);
   let loading = $state(true);
+  let loadingLastYear = $state(false);
   let error = $state<string | null>(null);
+  let expandedPersonIds = $state<Set<number>>(new Set());
+  let showComparison = $state(false);
 
   // Helper para convertir Date a ISO string
   function formatDateForApi(date: Date): string {
@@ -59,22 +76,117 @@
     }
   }
 
+  // Cargar resumen del año anterior (mismo rango de fechas pero año anterior)
+  async function loadLastYearSummary() {
+    if (!showComparison) return;
+
+    loadingLastYear = true;
+    try {
+      const lastYearStart = subYears(startDate, 1);
+      const lastYearEnd = subYears(endDate, 1);
+
+      const startDateStr = formatDateForApi(lastYearStart);
+      const endDateStr = formatDateForApi(lastYearEnd);
+      lastYearSummary = await calendarService.getSummary(startDateStr, endDateStr);
+    } catch (err) {
+      console.error('Error loading last year summary:', err);
+      lastYearSummary = [];
+    } finally {
+      loadingLastYear = false;
+    }
+  }
+
+  // Toggle comparativa
+  function toggleComparison() {
+    showComparison = !showComparison;
+    if (showComparison && lastYearSummary.length === 0) {
+      loadLastYearSummary();
+    }
+  }
+
   // Cargar al montar y cuando cambien las fechas
   onMount(() => {
     loadSummary();
   });
 
-  // Recargar cuando cambien las fechas (usando $effect)
+  // Recargar cuando cambien las fechas o las vacaciones (usando $effect)
   $effect(() => {
     // Acceder a las props para que el efecto se ejecute cuando cambien
     startDate;
     endDate;
+    vacations; // Detectar cambios en vacaciones
     loadSummary();
+    if (showComparison) {
+      loadLastYearSummary();
+    }
   });
+
+  // Toggle expansión de persona
+  function togglePersonExpansion(personId: number) {
+    const newSet = new Set(expandedPersonIds);
+    if (newSet.has(personId)) {
+      newSet.delete(personId);
+    } else {
+      newSet.add(personId);
+    }
+    expandedPersonIds = newSet;
+  }
+
+  // Obtener vacaciones de una persona en el rango visible
+  function getPersonVacationsInRange(personId: number): Vacation[] {
+    return vacations.filter((v) => {
+      if (v.personId !== personId) return false;
+      if (v.status !== 'Approved') return false;
+
+      const vacStart = parseISO(v.startDate);
+      const vacEnd = parseISO(v.endDate);
+
+      // Verificar intersección con el rango visible
+      return vacStart <= endDate && vacEnd >= startDate;
+    });
+  }
+
+  // Calcular días corridos para una vacación (con intersección del rango visible)
+  function getCalendarDaysInRange(vacation: Vacation): {
+    start: Date;
+    end: Date;
+    calendarDays: number;
+  } {
+    const vacStart = parseISO(vacation.startDate);
+    const vacEnd = parseISO(vacation.endDate);
+
+    // Calcular la intersección con el rango visible
+    const effectiveStart = max([vacStart, startDate]);
+    const effectiveEnd = min([vacEnd, endDate]);
+
+    const calendarDays = differenceInCalendarDays(effectiveEnd, effectiveStart) + 1;
+
+    return {
+      start: effectiveStart,
+      end: effectiveEnd,
+      calendarDays,
+    };
+  }
 </script>
 
 <div class="calendar-summary bg-white rounded-lg shadow-md p-6 mb-6">
-  <h3 class="text-xl font-bold mb-4 text-gray-800">Resumen del Período</h3>
+  <!-- Header con período y comparativa -->
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="text-xl font-bold text-gray-800">Resumen del Período</h3>
+      <p class="text-sm text-gray-600 mt-0.5">
+        {format(startDate, 'd MMM', { locale: es })} - {format(endDate, 'd MMM yyyy', {
+          locale: es,
+        })}
+      </p>
+    </div>
+    <button
+      onclick={toggleComparison}
+      class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium transition-colors"
+    >
+      {showComparison ? '✓ ' : ''}Comparar con año anterior
+    </button>
+  </div>
 
   {#if loading}
     <div class="flex items-center justify-center py-8">
@@ -93,36 +205,138 @@
   {:else}
     <div class="space-y-4">
       {#each summary as person (person.personId)}
+        {@const isExpanded = expandedPersonIds.has(person.personId)}
+        {@const personVacations = getPersonVacationsInRange(person.personId)}
         <div class="person-summary border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
-          <div class="flex items-center justify-between mb-2">
-            <span class="font-semibold text-gray-800">{person.personName}</span>
-            <span
-              class={`text-sm font-bold ${getUsageColor(person.workingDaysInRange, person.availableDays)}`}
-            >
-              {person.workingDaysInRange}
-              {person.workingDaysInRange === 1 ? 'día' : 'días'}
-            </span>
-          </div>
+          <!-- Header clickeable -->
+          <button
+            onclick={() => togglePersonExpansion(person.personId)}
+            class="w-full text-left hover:bg-gray-50 rounded-md p-2 -m-2 transition-colors"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-gray-500 transition-transform {isExpanded ? 'rotate-90' : ''}"
+                  >▶</span
+                >
+                <span class="font-semibold text-gray-800">{person.personName}</span>
+              </div>
+              <span
+                class={`text-sm font-bold ${getUsageColor(person.workingDaysInRange, person.availableDays)}`}
+              >
+                {person.workingDaysInRange}
+                {person.workingDaysInRange === 1 ? 'día hábil' : 'días hábiles'}
+              </span>
+            </div>
 
-          <!-- Barra de progreso -->
-          <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-            <div
-              class={`h-3 rounded-full transition-all duration-300 ${getProgressBarColor(person.workingDaysInRange, person.availableDays)}`}
-              style="width: {getProgressWidth(person.workingDaysInRange, person.availableDays)}%"
-            ></div>
-          </div>
+            <!-- Barra de progreso -->
+            <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div
+                class={`h-3 rounded-full transition-all duration-300 ${getProgressBarColor(person.workingDaysInRange, person.availableDays)}`}
+                style="width: {getProgressWidth(person.workingDaysInRange, person.availableDays)}%"
+              ></div>
+            </div>
 
-          <!-- Información adicional -->
-          <div class="mt-1 flex justify-between text-xs text-gray-600">
-            <span>
-              {person.workingDaysInRange} de {person.availableDays} días anuales
-            </span>
-            <span>
-              {getProgressWidth(person.workingDaysInRange, person.availableDays).toFixed(1)}%
-            </span>
-          </div>
+            <!-- Información adicional -->
+            <div class="mt-1 flex justify-between text-xs text-gray-600">
+              <span>
+                {person.workingDaysInRange} de {person.availableDays} días anuales
+              </span>
+              <span>
+                {getProgressWidth(person.workingDaysInRange, person.availableDays).toFixed(1)}%
+              </span>
+            </div>
+          </button>
+
+          <!-- Detalles expandibles -->
+          {#if isExpanded && personVacations.length > 0}
+            <div class="mt-3 ml-6 space-y-2">
+              {#each personVacations as vacation}
+                {@const range = getCalendarDaysInRange(vacation)}
+                <div class="text-sm bg-gray-50 p-2 rounded border border-gray-200">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <span class="font-medium">
+                        {format(range.start, 'd MMM', { locale: es })} - {format(
+                          range.end,
+                          'd MMM yyyy',
+                          { locale: es }
+                        )}
+                      </span>
+                      <div class="text-xs text-gray-600 mt-0.5">
+                        <span class="font-semibold">{range.calendarDays}</span>
+                        {range.calendarDays === 1 ? 'día corrido' : 'días corridos'}
+                        <span class="mx-1">•</span>
+                        <span class="font-semibold">{vacation.workingDaysCount}</span>
+                        {vacation.workingDaysCount === 1 ? 'día hábil' : 'días hábiles'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/each}
+    </div>
+  {/if}
+
+  <!-- Comparativa con año anterior -->
+  {#if showComparison}
+    <div class="mt-6 pt-6 border-t border-gray-200">
+      <h4 class="text-md font-semibold mb-3 text-gray-600 flex items-center gap-2">
+        <span>📊</span>
+        <span>Mismo período año anterior</span>
+        <span class="text-xs font-normal">
+          ({format(subYears(startDate, 1), 'd MMM', { locale: es })} - {format(
+            subYears(endDate, 1),
+            'd MMM yyyy',
+            { locale: es }
+          )})
+        </span>
+      </h4>
+
+      {#if loadingLastYear}
+        <div class="flex items-center justify-center py-4">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400"></div>
+          <span class="ml-2 text-sm text-gray-500">Cargando comparativa...</span>
+        </div>
+      {:else if lastYearSummary.length === 0}
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-600">
+          <p class="text-xs">No hay datos del año anterior para este período</p>
+        </div>
+      {:else}
+        <div class="space-y-3 opacity-75">
+          {#each lastYearSummary as person (person.personId)}
+            <div class="person-summary-last-year bg-gray-50 rounded-md p-3 border border-gray-200">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="font-medium text-gray-700 text-sm">{person.personName}</span>
+                <span
+                  class={`text-xs font-bold ${getUsageColor(person.workingDaysInRange, person.availableDays)}`}
+                >
+                  {person.workingDaysInRange}
+                  {person.workingDaysInRange === 1 ? 'día hábil' : 'días hábiles'}
+                </span>
+              </div>
+
+              <!-- Barra de progreso más pequeña -->
+              <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  class={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(person.workingDaysInRange, person.availableDays)}`}
+                  style="width: {getProgressWidth(
+                    person.workingDaysInRange,
+                    person.availableDays
+                  )}%"
+                ></div>
+              </div>
+
+              <div class="mt-1 text-xs text-gray-500">
+                {getProgressWidth(person.workingDaysInRange, person.availableDays).toFixed(1)}%
+                utilizado
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 </div>

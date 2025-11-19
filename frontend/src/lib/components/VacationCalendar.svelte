@@ -88,7 +88,36 @@
     months = monthsList;
   }
 
-  // Load previous months (manually triggered)
+  // Detectar si ya tenemos cargado el inicio del año actual
+  const hasCurrentYearStart = $derived(() => {
+    if (months.length === 0) return false;
+    const firstMonth = months[0];
+    const currentYear = today.getFullYear();
+    const januaryOfCurrentYear = new Date(currentYear, 0, 1);
+    return firstMonth <= januaryOfCurrentYear;
+  });
+
+  // Cargar hasta el comienzo del año actual
+  function loadToStartOfCurrentYear() {
+    const firstMonth = months[0];
+    const currentYear = today.getFullYear();
+    const januaryOfCurrentYear = new Date(currentYear, 0, 1);
+
+    // Si ya tenemos enero del año actual, no hacer nada
+    if (firstMonth <= januaryOfCurrentYear) return;
+
+    const newMonths: Date[] = [];
+    let currentMonth = startOfMonth(januaryOfCurrentYear);
+
+    while (currentMonth < firstMonth) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+
+    months = [...newMonths, ...months];
+  }
+
+  // Cargar el año anterior completo
   function loadPreviousYear() {
     const firstMonth = months[0];
     const previousYear = new Date(firstMonth.getFullYear() - 1, 0, 1); // January of previous year
@@ -102,6 +131,15 @@
     }
 
     months = [...newMonths, ...months];
+  }
+
+  // Función dinámica que carga según el contexto
+  function loadPrevious() {
+    if (hasCurrentYearStart()) {
+      loadPreviousYear();
+    } else {
+      loadToStartOfCurrentYear();
+    }
   }
 
   // Generate all weeks from all months as a flat array
@@ -402,7 +440,7 @@
 </script>
 
 <!-- Calendar Summary Component -->
-<CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} />
+<CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} {vacations} />
 
 <div class="bg-white rounded-lg shadow-md p-6">
   <!-- Calendar Header -->
@@ -428,13 +466,17 @@
     {/each}
   </div>
 
-  <!-- Load Previous Year Button -->
+  <!-- Load Previous Button (contextual) -->
   <div class="mb-4">
     <button
-      onclick={loadPreviousYear}
+      onclick={loadPrevious}
       class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
     >
-      ↑ Cargar año anterior
+      {#if hasCurrentYearStart()}
+        ↑ Cargar año anterior
+      {:else}
+        ↑ Cargar hasta comienzo de año
+      {/if}
     </button>
   </div>
 
