@@ -64,6 +64,7 @@
   // Infinite scroll state
   const today = new Date();
   let months = $state<Date[]>([]);
+  let monthsHistory = $state<Date[][]>([]); // Stack de estados anteriores
   let allWeeks = $derived(generateAllWeeks());
   let bottomSentinel: HTMLDivElement;
 
@@ -112,6 +113,9 @@
     // Si ya tenemos enero del año actual, no hacer nada
     if (firstMonth <= januaryOfCurrentYear) return;
 
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
+
     const newMonths: Date[] = [];
     let currentMonth = startOfMonth(januaryOfCurrentYear);
 
@@ -127,6 +131,9 @@
   function loadPreviousYear() {
     const firstMonth = months[0];
     const previousYear = new Date(firstMonth.getFullYear() - 1, 0, 1); // January of previous year
+
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
 
     const newMonths: Date[] = [];
     let currentMonth = startOfMonth(previousYear);
@@ -146,6 +153,16 @@
     } else {
       loadToStartOfCurrentYear();
     }
+  }
+
+  // Ocultar la última sección cargada (restaurar estado anterior)
+  function hideLastLoaded() {
+    if (monthsHistory.length === 0) return;
+
+    // Restaurar el estado anterior del stack
+    const previousState = monthsHistory[monthsHistory.length - 1];
+    months = [...previousState];
+    monthsHistory = monthsHistory.slice(0, -1);
   }
 
   // Generate all weeks from all months as a flat array
@@ -493,7 +510,7 @@
   </div>
 
   <!-- Load Previous Button (contextual) -->
-  <div class="mb-4">
+  <div class="mb-4 space-y-2">
     <button
       onclick={loadPrevious}
       class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
@@ -504,6 +521,16 @@
         ↑ Cargar hasta comienzo de año
       {/if}
     </button>
+
+    <!-- Hide Last Loaded Button (solo si hay historial) -->
+    {#if monthsHistory.length > 0}
+      <button
+        onclick={hideLastLoaded}
+        class="w-full px-4 py-2 bg-amber-50 hover:bg-amber-100 rounded-md text-amber-700 font-medium border border-amber-300"
+      >
+        ↓ Ocultar última sección cargada
+      </button>
+    {/if}
   </div>
 
   <!-- Calendar Container (using browser scroll) -->
