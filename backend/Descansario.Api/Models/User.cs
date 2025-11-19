@@ -28,6 +28,16 @@ public class User
     public UserRole Role { get; set; } = UserRole.User;
 
     /// <summary>
+    /// ID de la persona vinculada (nullable, auto-vinculado en registro por email)
+    /// </summary>
+    public int? PersonId { get; set; }
+
+    /// <summary>
+    /// Persona vinculada (navigation property)
+    /// </summary>
+    public Person? Person { get; set; }
+
+    /// <summary>
     /// Fecha de creación del usuario
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

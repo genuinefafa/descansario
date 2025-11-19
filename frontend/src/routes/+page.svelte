@@ -338,9 +338,20 @@
           <div class="text-right">
             <p class="text-sm font-medium text-gray-900">{$authStore.user.name}</p>
             <p class="text-xs text-gray-500">{$authStore.user.email}</p>
-            {#if $authStore.user.role === 'Admin'}
-              <span class="inline-block mt-1 px-2 py-0.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded">Admin</span>
-            {/if}
+            <div class="flex gap-1 mt-1 justify-end">
+              {#if $authStore.user.role === 'Admin'}
+                <span class="inline-block px-2 py-0.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded">Admin</span>
+              {/if}
+              {#if $authStore.user.personId}
+                <span class="inline-block px-2 py-0.5 text-xs font-semibold text-green-700 bg-green-100 rounded" title="Vinculado a persona">
+                  ✓ {$authStore.user.personName}
+                </span>
+              {:else}
+                <span class="inline-block px-2 py-0.5 text-xs font-semibold text-yellow-700 bg-yellow-100 rounded" title="No vinculado a ninguna persona">
+                  ⚠ Sin vinculación
+                </span>
+              {/if}
+            </div>
           </div>
           <button
             onclick={() => authStore.logout()}

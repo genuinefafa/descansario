@@ -228,7 +228,9 @@ app.MapGet("/api/auth/me", async (HttpContext context, DescansarioDbContext db) 
         return Results.Unauthorized();
     }
 
-    var user = await db.Users.FindAsync(userId);
+    var user = await db.Users
+        .Include(u => u.Person)
+        .FirstOrDefaultAsync(u => u.Id == userId);
 
     if (user == null)
     {
@@ -241,6 +243,8 @@ app.MapGet("/api/auth/me", async (HttpContext context, DescansarioDbContext db) 
         Email = user.Email,
         Name = user.Name,
         Role = user.Role.ToString(),
+        PersonId = user.PersonId,
+        PersonName = user.Person?.Name,
         CreatedAt = user.CreatedAt
     };
 
