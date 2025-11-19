@@ -12,6 +12,7 @@
   import { personsService } from '$lib/services/persons';
   import { vacationsService } from '$lib/services/vacations';
   import { holidaysService } from '$lib/services/holidays';
+  import { authStore } from '$lib/stores/authStore';
   import type { Person } from '$lib/types/person';
   import type { Vacation } from '$lib/types/vacation';
   import type { Holiday } from '$lib/types/holiday';
@@ -325,9 +326,30 @@
 <div class="min-h-screen bg-gray-50 py-8">
   <div class="max-w-6xl mx-auto px-4">
     <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-4xl font-bold text-gray-900 mb-2">🏖️ Descansario</h1>
-      <p class="text-lg text-gray-600">Gestión de vacaciones para tu equipo</p>
+    <div class="mb-8 flex justify-between items-start">
+      <div>
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">🏖️ Descansario</h1>
+        <p class="text-lg text-gray-600">Gestión de vacaciones para tu equipo</p>
+      </div>
+
+      <!-- User info and logout -->
+      {#if $authStore.user}
+        <div class="flex items-center gap-4">
+          <div class="text-right">
+            <p class="text-sm font-medium text-gray-900">{$authStore.user.name}</p>
+            <p class="text-xs text-gray-500">{$authStore.user.email}</p>
+            {#if $authStore.user.role === 'Admin'}
+              <span class="inline-block mt-1 px-2 py-0.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded">Admin</span>
+            {/if}
+          </div>
+          <button
+            onclick={() => authStore.logout()}
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      {/if}
     </div>
 
     {#if error}

@@ -1,22 +1,26 @@
 # 🗺️ Roadmap - Descansario
 
 **Última actualización:** 2025-11-18
-**Estado actual:** Fase 4 completa (~95%), preparando deploy público
+**Estado actual:** Fase 5 completa (~100%), sistema listo para deploy público
 
 ---
 
 ## 📍 Estado Actual del Proyecto
 
-### ✅ Completado (Fases 1-4)
+### ✅ Completado (Fases 1-5)
 
 **Backend:**
 - ✅ API REST completa (.NET 8 + Minimal APIs)
-- ✅ 27 endpoints implementados
+- ✅ 30+ endpoints implementados
 - ✅ Entity Framework Core + SQLite
 - ✅ Cálculo de días hábiles (WorkingDaysCalculator)
 - ✅ Sistema de feriados con sync desde API externa
 - ✅ Validaciones de negocio
 - ✅ Swagger/OpenAPI documentation
+- ✅ **Autenticación JWT completa**
+- ✅ **Rate limiting con AspNetCoreRateLimit**
+- ✅ **Logging estructurado con Serilog**
+- ✅ **Protección de endpoints con [Authorize]**
 
 **Frontend:**
 - ✅ SvelteKit 5 + TypeScript + TailwindCSS
@@ -25,27 +29,41 @@
 - ✅ Slots conectados (vacaciones consecutivas)
 - ✅ Cálculo automático de días hábiles
 - ✅ Interfaz por tabs (Personas, Vacaciones, Feriados, Calendario)
+- ✅ **Página de login con autenticación**
+- ✅ **Servicio y store de autenticación**
+- ✅ **Protección de rutas con guards**
+- ✅ **Auto-logout en 401**
 
 **DevOps:**
 - ✅ Docker + Docker Compose para desarrollo
+- ✅ **Docker Compose para producción (docker-compose.prod.yml)**
 - ✅ Auto-migración de base de datos
 - ✅ CORS configurado para desarrollo
+- ✅ **Healthchecks configurados**
+- ✅ **Scripts de backup/restore automatizados**
+- ✅ **Configuración nginx para reverse proxy**
 
-### ❌ Pendiente para Deploy Público
+**Seguridad:**
+- ✅ **Autenticación JWT (7 días de expiración)**
+- ✅ **BCrypt para hashing de passwords (work factor 12)**
+- ✅ **Rate limiting (100 req/min global, 10/min login, 5/hour registro)**
+- ✅ **Todos los endpoints protegidos (excepto /health y /api/auth/*)**
+- ✅ **Variables de entorno para secrets**
+- ✅ **Usuario admin seed**
 
-**Seguridad (CRÍTICO):**
-- ❌ Autenticación JWT
-- ❌ HTTPS con certificados SSL
-- ❌ Rate limiting
-- ❌ Secrets en variables de entorno
-- ❌ CORS restrictivo para producción
+### 🔧 Pendiente para Deploy Público
+
+**Infraestructura:**
+- ❌ Configuración nginx en servidor real
+- ❌ Certificados SSL/TLS (Let's Encrypt o similares)
+- ❌ Deploy en VM/servidor de producción
+- ❌ DNS configurado
 
 **Operaciones:**
-- ❌ Docker Compose para producción
-- ❌ Backup automático de base de datos
-- ❌ Logs estructurados
-- ❌ Healthchecks y monitoreo
-- ❌ Testing de seguridad básico
+- ❌ Cron job para backups automáticos
+- ❌ Monitoreo externo (UptimeRobot o similar)
+- ❌ Fail2ban configurado
+- ❌ Cambiar password admin por defecto
 
 ---
 

@@ -1,4 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Security.Claims;
+using Serilog;
+using AspNetCoreRateLimit;
 using Descansario.Api.Data;
 using Descansario.Api.Models;
 using Descansario.Api.DTOs;
@@ -6,6 +12,22 @@ using Descansario.Api.Helpers;
 using Descansario.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configurar Serilog para logging estructurado
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: builder.Configuration["Logging:FilePath"] ?? "/var/log/descansario/app-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container
 builder.Services.AddEndpointsApiExplorer();
@@ -18,9 +40,85 @@ builder.Services.AddDbContext<DescansarioDbContext>(options =>
 // Business Services
 builder.Services.AddScoped<WorkingDaysCalculator>();
 builder.Services.AddScoped<HolidaySyncService>();
+builder.Services.AddScoped<AuthService>();
 
 // HTTP Client for external APIs
 builder.Services.AddHttpClient();
+
+// JWT Authentication
+// Desactivar mapeo automático de claims (evita duplicados de NameIdentifier)
+System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "descansario-api";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "descansario-web";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ClockSkew = TimeSpan.Zero // No agregar tiempo extra de tolerancia
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// Rate Limiting (protección contra brute force y abuso)
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.EnableEndpointRateLimiting = true;
+    options.StackBlockedRequests = false;
+    options.HttpStatusCode = 429; // Too Many Requests
+    options.RealIpHeader = "X-Real-IP";
+    options.ClientIdHeader = "X-ClientId";
+
+    // Reglas generales
+    options.GeneralRules = new List<RateLimitRule>
+    {
+        // Límite global: 100 requests por minuto por IP
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1m",
+            Limit = 100
+        },
+        // Protección anti brute-force en login: 10 intentos por minuto
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/login",
+            Period = "1m",
+            Limit = 10
+        },
+        // Prevenir spam de registros: 5 registros por hora
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/register",
+            Period = "1h",
+            Limit = 5
+        },
+        // Limitar sync de feriados (operación costosa): 5 por hora
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/holidays/sync",
+            Period = "1h",
+            Limit = 5
+        }
+    };
+});
+
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 
 // CORS para desarrollo
 builder.Services.AddCors(options =>
@@ -64,6 +162,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 
+// Rate Limiting (ANTES de auth para bloquear requests abusivas temprano)
+app.UseMiddleware<IpRateLimitMiddleware>();
+
+// Authentication & Authorization (IMPORTANTE: orden correcto)
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Endpoints básicos
 app.MapGet("/", () => new
 {
@@ -73,6 +178,77 @@ app.MapGet("/", () => new
 });
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+
+// ==============================================================
+// Authentication Endpoints
+// ==============================================================
+
+// POST /api/auth/login - Login de usuario
+app.MapPost("/api/auth/login", async (LoginRequest request, AuthService authService) =>
+{
+    var result = await authService.LoginAsync(request);
+
+    if (result == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(result);
+})
+.WithName("Login")
+.WithTags("Auth")
+.AllowAnonymous(); // Permite acceso sin autenticación
+
+// POST /api/auth/register - Registro de nuevo usuario
+app.MapPost("/api/auth/register", async (RegisterRequest request, AuthService authService) =>
+{
+    var user = await authService.RegisterAsync(request);
+
+    if (user == null)
+    {
+        return Results.BadRequest(new { message = "No se pudo registrar el usuario. Verifique que el email no exista y que el password tenga al menos 6 caracteres." });
+    }
+
+    return Results.Created($"/api/users/{user.Id}", user);
+})
+.WithName("Register")
+.WithTags("Auth")
+.AllowAnonymous(); // Permite acceso sin autenticación
+
+// GET /api/auth/me - Obtener usuario actual (requiere autenticación)
+app.MapGet("/api/auth/me", async (HttpContext context, DescansarioDbContext db) =>
+{
+    // Buscar el claim NameIdentifier que sea un número (puede haber varios por el mapeo automático de 'sub')
+    var userIdClaim = context.User.Claims
+        .Where(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)
+        .FirstOrDefault(c => int.TryParse(c.Value, out _));
+
+    if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+    {
+        return Results.Unauthorized();
+    }
+
+    var user = await db.Users.FindAsync(userId);
+
+    if (user == null)
+    {
+        return Results.NotFound(new { message = "Usuario no encontrado" });
+    }
+
+    var userDto = new UserDto
+    {
+        Id = user.Id,
+        Email = user.Email,
+        Name = user.Name,
+        Role = user.Role.ToString(),
+        CreatedAt = user.CreatedAt
+    };
+
+    return Results.Ok(userDto);
+})
+.WithName("GetCurrentUser")
+.WithTags("Auth")
+.RequireAuthorization(); // Requiere autenticación
 
 // ==============================================================
 // CRUD Endpoints - Personas
@@ -94,7 +270,8 @@ app.MapGet("/api/persons", async (DescansarioDbContext db) =>
     return Results.Ok(persons);
 })
 .WithName("GetPersons")
-.WithTags("Persons");
+.WithTags("Persons")
+.RequireAuthorization();
 
 // GET /api/persons/{id} - Obtener una persona por ID
 app.MapGet("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =>
@@ -115,7 +292,8 @@ app.MapGet("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =>
     return Results.Ok(personDto);
 })
 .WithName("GetPersonById")
-.WithTags("Persons");
+.WithTags("Persons")
+.RequireAuthorization();
 
 // POST /api/persons - Crear una nueva persona
 app.MapPost("/api/persons", async (CreatePersonDto dto, DescansarioDbContext db) =>
@@ -162,7 +340,8 @@ app.MapPost("/api/persons", async (CreatePersonDto dto, DescansarioDbContext db)
     return Results.Created($"/api/persons/{person.Id}", personDto);
 })
 .WithName("CreatePerson")
-.WithTags("Persons");
+.WithTags("Persons")
+.RequireAuthorization();
 
 // PUT /api/persons/{id} - Actualizar una persona
 app.MapPut("/api/persons/{id:int}", async (int id, UpdatePersonDto dto, DescansarioDbContext db) =>
@@ -209,7 +388,8 @@ app.MapPut("/api/persons/{id:int}", async (int id, UpdatePersonDto dto, Descansa
     return Results.Ok(personDto);
 })
 .WithName("UpdatePerson")
-.WithTags("Persons");
+.WithTags("Persons")
+.RequireAuthorization();
 
 // DELETE /api/persons/{id} - Eliminar una persona
 app.MapDelete("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =>
@@ -225,7 +405,8 @@ app.MapDelete("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =
     return Results.Ok(new { message = "Persona eliminada correctamente" });
 })
 .WithName("DeletePerson")
-.WithTags("Persons");
+.WithTags("Persons")
+.RequireAuthorization();
 
 // ==============================================================
 // CRUD Endpoints - Vacations
@@ -252,7 +433,8 @@ app.MapGet("/api/vacations", async (DescansarioDbContext db) =>
     return Results.Ok(vacations);
 })
 .WithName("GetVacations")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // GET /api/vacations/person/{personId} - Listar vacaciones de una persona
 app.MapGet("/api/vacations/person/{personId:int}", async (int personId, DescansarioDbContext db) =>
@@ -276,7 +458,8 @@ app.MapGet("/api/vacations/person/{personId:int}", async (int personId, Descansa
     return Results.Ok(vacations);
 })
 .WithName("GetVacationsByPerson")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // GET /api/vacations/overlap?startDate={start}&endDate={end} - Verificar solapamiento de vacaciones
 app.MapGet("/api/vacations/overlap", async (DateTime startDate, DateTime endDate, DescansarioDbContext db) =>
@@ -300,7 +483,8 @@ app.MapGet("/api/vacations/overlap", async (DateTime startDate, DateTime endDate
     return Results.Ok(overlappingVacations);
 })
 .WithName("GetOverlappingVacations")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // GET /api/vacations/{id} - Obtener una vacación por ID
 app.MapGet("/api/vacations/{id:int}", async (int id, DescansarioDbContext db) =>
@@ -327,7 +511,8 @@ app.MapGet("/api/vacations/{id:int}", async (int id, DescansarioDbContext db) =>
     return Results.Ok(vacation);
 })
 .WithName("GetVacationById")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // POST /api/vacations - Crear una nueva vacación
 app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
@@ -386,7 +571,8 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
     return Results.Created($"/api/vacations/{vacation.Id}", vacationDto);
 })
 .WithName("CreateVacation")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // PUT /api/vacations/{id} - Actualizar una vacación
 app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
@@ -446,7 +632,8 @@ app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, Desc
     return Results.Ok(vacationDto);
 })
 .WithName("UpdateVacation")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // DELETE /api/vacations/{id} - Eliminar una vacación
 app.MapDelete("/api/vacations/{id:int}", async (int id, DescansarioDbContext db) =>
@@ -462,7 +649,8 @@ app.MapDelete("/api/vacations/{id:int}", async (int id, DescansarioDbContext db)
     return Results.Ok(new { message = "Vacación eliminada correctamente" });
 })
 .WithName("DeleteVacation")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // GET /api/vacations/working-days - Calcular días hábiles estimados
 app.MapGet("/api/vacations/working-days", async (DateTime startDate, DateTime endDate, WorkingDaysCalculator calculator) =>
@@ -476,7 +664,8 @@ app.MapGet("/api/vacations/working-days", async (DateTime startDate, DateTime en
     return Results.Ok(new { workingDays });
 })
 .WithName("CalculateWorkingDays")
-.WithTags("Vacations");
+.WithTags("Vacations")
+.RequireAuthorization();
 
 // ==============================================================
 // CRUD Endpoints - Holidays
@@ -500,7 +689,8 @@ app.MapGet("/api/holidays", async (DescansarioDbContext db) =>
     return Results.Ok(holidays);
 })
 .WithName("GetHolidays")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // GET /api/holidays/year/{year} - Listar feriados de un año
 app.MapGet("/api/holidays/year/{year:int}", async (int year, string? country, DescansarioDbContext db) =>
@@ -528,7 +718,8 @@ app.MapGet("/api/holidays/year/{year:int}", async (int year, string? country, De
     return Results.Ok(holidays);
 })
 .WithName("GetHolidaysByYear")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // GET /api/holidays/{id} - Obtener un feriado por ID
 app.MapGet("/api/holidays/{id:int}", async (int id, DescansarioDbContext db) =>
@@ -550,7 +741,8 @@ app.MapGet("/api/holidays/{id:int}", async (int id, DescansarioDbContext db) =>
     return Results.Ok(holidayDto);
 })
 .WithName("GetHolidayById")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // POST /api/holidays - Crear un nuevo feriado
 app.MapPost("/api/holidays", async (CreateHolidayDto dto, DescansarioDbContext db) =>
@@ -593,7 +785,8 @@ app.MapPost("/api/holidays", async (CreateHolidayDto dto, DescansarioDbContext d
     return Results.Created($"/api/holidays/{holiday.Id}", holidayDto);
 })
 .WithName("CreateHoliday")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // PUT /api/holidays/{id} - Actualizar un feriado
 app.MapPut("/api/holidays/{id:int}", async (int id, UpdateHolidayDto dto, DescansarioDbContext db) =>
@@ -637,7 +830,8 @@ app.MapPut("/api/holidays/{id:int}", async (int id, UpdateHolidayDto dto, Descan
     return Results.Ok(holidayDto);
 })
 .WithName("UpdateHoliday")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // DELETE /api/holidays/{id} - Eliminar un feriado
 app.MapDelete("/api/holidays/{id:int}", async (int id, DescansarioDbContext db) =>
@@ -653,7 +847,8 @@ app.MapDelete("/api/holidays/{id:int}", async (int id, DescansarioDbContext db) 
     return Results.Ok(new { message = "Feriado eliminado correctamente" });
 })
 .WithName("DeleteHoliday")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // POST /api/holidays/sync - Sincronizar feriados desde API externa
 app.MapPost("/api/holidays/sync", async (SyncHolidaysRequest request, HolidaySyncService syncService) =>
@@ -694,7 +889,8 @@ app.MapPost("/api/holidays/sync", async (SyncHolidaysRequest request, HolidaySyn
     }
 })
 .WithName("SyncHolidays")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // POST /api/holidays/import - Importar feriados desde JSON
 app.MapPost("/api/holidays/import", async (ImportHolidaysRequest request, HolidaySyncService syncService) =>
@@ -735,7 +931,8 @@ app.MapPost("/api/holidays/import", async (ImportHolidaysRequest request, Holida
     }
 })
 .WithName("ImportHolidays")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
 // DELETE /api/holidays/year/{year} - Eliminar feriados de un año específico (solo desarrollo)
 app.MapDelete("/api/holidays/year/{year:int}", async (int year, DescansarioDbContext db, IWebHostEnvironment env) =>
@@ -766,6 +963,20 @@ app.MapDelete("/api/holidays/year/{year:int}", async (int year, DescansarioDbCon
     return Results.Ok(new { message = $"Se eliminaron {count} feriados del año {year}", deletedCount = count });
 })
 .WithName("DeleteHolidaysByYear")
-.WithTags("Holidays");
+.WithTags("Holidays")
+.RequireAuthorization();
 
-app.Run();
+try
+{
+    Log.Information("Iniciando Descansario API");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "La aplicación falló al iniciar");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}

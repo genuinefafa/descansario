@@ -2,7 +2,7 @@
  * Servicio para comunicación con la API de Descansario
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:5001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 class ApiService {
   private baseUrl: string;
@@ -14,16 +14,32 @@ class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
+    // Obtener token JWT del localStorage
+    const token = localStorage.getItem('auth_token');
+
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });
 
+    // Si recibimos 401, limpiar token y redirigir a login
+    if (response.status === 401) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      // Si estamos en el navegador, redirigir a login
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+      throw new Error('No autorizado. Por favor, inicie sesión nuevamente.');
+    }
+
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     return response.json();

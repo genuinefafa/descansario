@@ -1,0 +1,101 @@
+version: '3.8'
+
+# Docker Compose para PRODUCCIÓN
+# Requiere nginx externo como reverse proxy (HTTPS + security headers)
+# Leer .env antes de ejecutar: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: descansario-api-prod
+    ports:
+      - "5000:8080"  # Exponer para nginx
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/data/descansario.db
+      # JWT Configuration (desde .env)
+      - Jwt__Secret=${JWT_SECRET:?JWT_SECRET no configurado}
+      - Jwt__Issuer=${JWT_ISSUER:-descansario-api}
+      - Jwt__Audience=${JWT_AUDIENCE:-descansario-web}
+      - Jwt__ExpirationHours=${JWT_EXPIRATION_HOURS:-168}
+    volumes:
+      - api-data:/data
+      - api-logs:/var/log/descansario
+    networks:
+      - descansario-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # URL de la API (accesible desde el navegador del usuario)
+        # En producción, será https://tu-dominio.com
+        - VITE_API_URL=${APP_URL:-http://localhost:5000}
+    container_name: descansario-web-prod
+    ports:
+      - "3000:80"  # Exponer para nginx
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - descansario-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  api-data:
+    driver: local
+  api-logs:
+    driver: local
+
+networks:
+  descansario-network:
+    driver: bridge
+
+# NOTAS DE CONFIGURACIÓN:
+#
+# 1. Variables de entorno requeridas (.env):
+#    - JWT_SECRET (generar con: openssl rand -base64 32)
+#    - APP_URL (ej: https://descansario.midominio.com)
+#
+# 2. Nginx como reverse proxy:
+#    - Configurar nginx para proxy_pass a:
+#      * http://localhost:3000 (frontend)
+#      * http://localhost:5000 (API en /api/*)
+#    - HTTPS con Let's Encrypt o certificados propios
+#    - Headers de seguridad (HSTS, X-Frame-Options, etc)
+#
+# 3. Backups:
+#    - La base de datos está en volumen api-data
+#    - Path dentro del contenedor: /data/descansario.db
+#    - Comando backup: docker exec descansario-api-prod sqlite3 /data/descansario.db ".backup /tmp/backup.db"
+#
+# 4. Logs:
+#    - Logs de la API en volumen api-logs
+#    - Ver logs: docker-compose -f docker-compose.prod.yml logs -f api
+#
+# 5. Healthchecks:
+#    - API: GET http://localhost:5000/health
+#    - Web: wget http://localhost:3000
+#
+# 6. Comandos útiles:
+#    - Levantar: docker-compose -f docker-compose.prod.yml up -d
+#    - Ver logs: docker-compose -f docker-compose.prod.yml logs -f
+#    - Detener: docker-compose -f docker-compose.prod.yml down
+#    - Rebuild: docker-compose -f docker-compose.prod.yml up --build -d
+#    - Ver estado: docker-compose -f docker-compose.prod.yml ps
