@@ -37,8 +37,10 @@ public class AuthService
             return null;
         }
 
-        // Buscar usuario por email
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email.ToLowerInvariant());
+        // Buscar usuario por email (incluir Person para obtener el nombre)
+        var user = await _db.Users
+            .Include(u => u.Person)
+            .FirstOrDefaultAsync(u => u.Email == request.Email.ToLowerInvariant());
 
         if (user == null)
         {
@@ -73,6 +75,8 @@ public class AuthService
                 Email = user.Email,
                 Name = user.Name,
                 Role = user.Role.ToString(),
+                PersonId = user.PersonId,
+                PersonName = user.Person?.Name,
                 CreatedAt = user.CreatedAt
             }
         };
@@ -114,23 +118,35 @@ public class AuthService
             return null;
         }
 
+        // Buscar si existe Person con ese email (auto-vinculación mágica)
+        var person = await _db.Persons
+            .FirstOrDefaultAsync(p => p.Email == request.Email.ToLowerInvariant());
+
         // Hash del password con BCrypt (work factor 12)
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
 
-        // Crear usuario
+        // Crear usuario con auto-vinculación si existe Person
         var user = new User
         {
             Email = request.Email.ToLowerInvariant(),
             PasswordHash = passwordHash,
             Name = request.Name,
-            Role = UserRole.User, // Por defecto todos son User, no Admin
+            PersonId = person?.Id, // Auto-vinculación mágica por email
+            Role = person != null ? UserRole.User : UserRole.Admin, // Admin si no hay Person vinculada
             CreatedAt = DateTime.UtcNow
         };
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("New user registered: {Email}", user.Email);
+        if (person != null)
+        {
+            _logger.LogInformation("New user registered and linked to Person {PersonId}: {Email}", person.Id, user.Email);
+        }
+        else
+        {
+            _logger.LogInformation("New admin user registered (no Person link): {Email}", user.Email);
+        }
 
         return new UserDto
         {
@@ -138,6 +154,8 @@ public class AuthService
             Email = user.Email,
             Name = user.Name,
             Role = user.Role.ToString(),
+            PersonId = user.PersonId,
+            PersonName = person?.Name,
             CreatedAt = user.CreatedAt
         };
     }

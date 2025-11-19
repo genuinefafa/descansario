@@ -38,5 +38,7 @@ public record UserDto
     public required string Email { get; init; }
     public required string Name { get; init; }
     public required string Role { get; init; }
+    public int? PersonId { get; init; }
+    public string? PersonName { get; init; }
     public DateTime CreatedAt { get; init; }
 }

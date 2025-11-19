@@ -20,6 +20,8 @@ export interface User {
   email: string;
   name: string;
   role: string;
+  personId?: number | null;
+  personName?: string | null;
   createdAt: string;
 }
 
