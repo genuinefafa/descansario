@@ -612,19 +612,22 @@
 
                 <!-- Vacation bars overlay -->
                 <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
-                  <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
+                  <div class="relative h-full">
                     {#each segments as segment}
                       {@const isPending = segment.vacation.status === 'Pending'}
                       {@const baseColor = getPersonColorValue(segment.person.id)}
+                      {@const cellWidth = 100 / 7}
+                      {@const leftPos = segment.startCol * cellWidth}
+                      {@const width = segment.span * cellWidth}
+                      {@const topPos = 20 + (segment.row ?? 0) * 20}
                       <button
                         onclick={(e) => openVacationTooltip(segment.vacation, e)}
-                        class="pointer-events-auto text-xs px-1 pt-0.5 rounded text-white truncate text-left align-top {isPending
+                        class="pointer-events-auto absolute text-xs px-1 py-0.5 rounded text-white truncate text-left h-5 leading-tight {isPending
                           ? ''
                           : getPersonColor(
                               segment.person.id
                             )} cursor-pointer hover:opacity-90 transition-opacity"
-                        style="grid-column: {segment.startCol +
-                          1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
+                        style="left: {leftPos}%; width: calc({width}% - 2px); top: {topPos}px; {isPending
                           ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
                           : ''}"
                         title="{segment.person.name} - {segment.vacation
