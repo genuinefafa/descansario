@@ -38,6 +38,23 @@
     }
   });
 
+  // Detect highlight param to auto-open vacation edit form
+  $effect(() => {
+    const highlightId = $page.url.searchParams.get('highlight');
+    if (highlightId && activeTab === 'vacations' && vacations.length > 0) {
+      const vacationId = parseInt(highlightId);
+      const vacation = vacations.find(v => v.id === vacationId);
+      if (vacation && !showVacationForm) {
+        editingVacation = vacation;
+        showVacationForm = true;
+        // Limpiar el query param
+        const url = new URL(window.location.href);
+        url.searchParams.delete('highlight');
+        window.history.replaceState({}, '', url);
+      }
+    }
+  });
+
   // Page title based on active tab
   const pageTitle = $derived(() => {
     switch (activeTab) {
