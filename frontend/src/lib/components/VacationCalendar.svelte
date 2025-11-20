@@ -22,11 +22,14 @@
   import type { Vacation } from '$lib/types/vacation';
   import type { Person } from '$lib/types/person';
   import type { Holiday } from '$lib/types/holiday';
+  import CalendarSummary from './CalendarSummary.svelte';
+  import VacationTooltip from './VacationTooltip.svelte';
 
   interface Props {
     vacations: Vacation[];
     persons: Person[];
     holidays: Holiday[];
+    onEditVacation?: (vacation: Vacation) => void;
   }
 
   interface VacationSegment {
@@ -43,12 +46,16 @@
     monthLabel?: { monthDate: Date; weeksInMonth: number };
   }
 
-  let { vacations, persons, holidays }: Props = $props();
+  let { vacations, persons, holidays, onEditVacation }: Props = $props();
+
+  // Estado del tooltip
+  let selectedVacation = $state<Vacation | null>(null);
+  let tooltipPosition = $state<{ x: number; y: number } | null>(null);
 
   // Helper para encontrar feriado en una fecha
   function getHolidayForDate(date: Date): Holiday | undefined {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return holidays.find(h => {
+    return holidays.find((h) => {
       const holidayDate = format(parseISO(h.date), 'yyyy-MM-dd');
       return holidayDate === dateStr;
     });
@@ -57,8 +64,20 @@
   // Infinite scroll state
   const today = new Date();
   let months = $state<Date[]>([]);
+  let monthsHistory = $state<Date[][]>([]); // Stack de estados anteriores
   let allWeeks = $derived(generateAllWeeks());
   let bottomSentinel: HTMLDivElement;
+
+  // Calculate visible date range for CalendarSummary
+  let visibleStartDate = $derived(() => {
+    if (months.length === 0) return today;
+    return startOfMonth(months[0]);
+  });
+
+  let visibleEndDate = $derived(() => {
+    if (months.length === 0) return today;
+    return endOfMonth(months[months.length - 1]);
+  });
 
   // Initialize with current month onwards
   function initializeMonths() {
@@ -76,10 +95,45 @@
     months = monthsList;
   }
 
-  // Load previous months (manually triggered)
+  // Detectar si ya tenemos cargado el inicio del año actual
+  const hasCurrentYearStart = $derived(() => {
+    if (months.length === 0) return false;
+    const firstMonth = months[0];
+    const currentYear = today.getFullYear();
+    const januaryOfCurrentYear = new Date(currentYear, 0, 1);
+    return firstMonth <= januaryOfCurrentYear;
+  });
+
+  // Cargar hasta el comienzo del año actual
+  function loadToStartOfCurrentYear() {
+    const firstMonth = months[0];
+    const currentYear = today.getFullYear();
+    const januaryOfCurrentYear = new Date(currentYear, 0, 1);
+
+    // Si ya tenemos enero del año actual, no hacer nada
+    if (firstMonth <= januaryOfCurrentYear) return;
+
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
+
+    const newMonths: Date[] = [];
+    let currentMonth = startOfMonth(januaryOfCurrentYear);
+
+    while (currentMonth < firstMonth) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+
+    months = [...newMonths, ...months];
+  }
+
+  // Cargar el año anterior completo
   function loadPreviousYear() {
     const firstMonth = months[0];
     const previousYear = new Date(firstMonth.getFullYear() - 1, 0, 1); // January of previous year
+
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
 
     const newMonths: Date[] = [];
     let currentMonth = startOfMonth(previousYear);
@@ -90,6 +144,25 @@
     }
 
     months = [...newMonths, ...months];
+  }
+
+  // Función dinámica que carga según el contexto
+  function loadPrevious() {
+    if (hasCurrentYearStart()) {
+      loadPreviousYear();
+    } else {
+      loadToStartOfCurrentYear();
+    }
+  }
+
+  // Ocultar la última sección cargada (restaurar estado anterior)
+  function hideLastLoaded() {
+    if (monthsHistory.length === 0) return;
+
+    // Restaurar el estado anterior del stack
+    const previousState = monthsHistory[monthsHistory.length - 1];
+    months = [...previousState];
+    monthsHistory = monthsHistory.slice(0, -1);
   }
 
   // Generate all weeks from all months as a flat array
@@ -132,13 +205,13 @@
           firstDayWeekIndices.push(weekIndex);
 
           // Calculate rowspan: from this week until the week before the next "day 1" week
-          const nextFirstDayIndex = firstDayWeekIndices.length > 0
-            ? allWeeks.findIndex((w, idx) => idx > weekIndex && w.some(d => d.getDate() === 1))
-            : -1;
+          const nextFirstDayIndex =
+            firstDayWeekIndices.length > 0
+              ? allWeeks.findIndex((w, idx) => idx > weekIndex && w.some((d) => d.getDate() === 1))
+              : -1;
 
-          const weeksInMonth = nextFirstDayIndex === -1
-            ? allWeeks.length - weekIndex
-            : nextFirstDayIndex - weekIndex;
+          const weeksInMonth =
+            nextFirstDayIndex === -1 ? allWeeks.length - weekIndex : nextFirstDayIndex - weekIndex;
 
           allWeekRows[weekIndex].monthLabel = {
             monthDate: startOfMonth(firstDayInWeek),
@@ -282,11 +355,11 @@
         // Si hay días en medio, verificar que TODOS sean weekends (no feriados)
         const daysBetween = eachDayOfInterval({
           start: addDays(prevDay, 1),
-          end: addDays(currentDay, -1)
+          end: addDays(currentDay, -1),
         });
 
         // Solo continuar el segmento si los días intermedios son SOLO weekends
-        const allIntermediateAreWeekends = daysBetween.every(day => isWeekend(day));
+        const allIntermediateAreWeekends = daysBetween.every((day) => isWeekend(day));
 
         if (allIntermediateAreWeekends) {
           // Continuar el segmento (solo hay weekends en medio)
@@ -354,6 +427,26 @@
     }
   }
 
+  // Abrir tooltip de vacación
+  function openVacationTooltip(vacation: Vacation, event: MouseEvent) {
+    selectedVacation = vacation;
+    tooltipPosition = { x: event.clientX, y: event.clientY };
+  }
+
+  // Cerrar tooltip
+  function closeVacationTooltip() {
+    selectedVacation = null;
+    tooltipPosition = null;
+  }
+
+  // Manejar edición desde el tooltip
+  function handleEditFromTooltip(vacation: Vacation) {
+    closeVacationTooltip();
+    if (onEditVacation) {
+      onEditVacation(vacation);
+    }
+  }
+
   // Generate month anchor ID (formato: mes-año, ej: "noviembre-2025")
   function getMonthAnchor(monthDate: Date): string {
     return format(monthDate, 'MMMM-yyyy', { locale: es }).toLowerCase();
@@ -389,6 +482,9 @@
   });
 </script>
 
+<!-- Calendar Summary Component -->
+<CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} {vacations} />
+
 <div class="bg-white rounded-lg shadow-md p-6">
   <!-- Calendar Header -->
   <div class="flex items-center justify-between mb-6">
@@ -413,30 +509,47 @@
     {/each}
   </div>
 
-  <!-- Load Previous Year Button -->
-  <div class="mb-4">
+  <!-- Load Previous Button (contextual) -->
+  <div class="mb-4 space-y-2">
     <button
-      onclick={loadPreviousYear}
+      onclick={loadPrevious}
       class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
     >
-      ↑ Cargar año anterior
+      {#if hasCurrentYearStart()}
+        ↑ Cargar año anterior
+      {:else}
+        ↑ Cargar hasta comienzo de año
+      {/if}
     </button>
+
+    <!-- Hide Last Loaded Button (solo si hay historial) -->
+    {#if monthsHistory.length > 0}
+      <button
+        onclick={hideLastLoaded}
+        class="w-full px-4 py-2 bg-amber-50 hover:bg-amber-100 rounded-md text-amber-700 font-medium border border-amber-300"
+      >
+        ↓ Ocultar última sección cargada
+      </button>
+    {/if}
   </div>
 
   <!-- Calendar Container (using browser scroll) -->
   <div class="border border-gray-200 rounded-lg">
-
     <!-- Continuous Calendar Table -->
     <table class="w-full border-collapse">
       <!-- Day headers - shown once at the top -->
       <thead class="sticky top-0 bg-gray-50 z-10">
         <tr>
           {#each ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as day}
-            <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-gray-200">
+            <th
+              class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-gray-200"
+            >
               {day}
             </th>
           {/each}
-          <th class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-l border-gray-200 w-20">
+          <th
+            class="p-2 text-center text-sm font-semibold text-gray-700 border-b border-l border-gray-200 w-20"
+          >
             Mes
           </th>
         </tr>
@@ -459,7 +572,9 @@
                     {@const isDayInVisibleMonths = months.some((m) => isSameMonth(m, dayMonth))}
                     {@const holiday = getHolidayForDate(day)}
                     <div
-                      class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth ? 'border-l-2 border-l-gray-900' : ''} {isDayInVisibleMonths
+                      class="h-24 p-1 border-b border-r border-gray-200 {isFirstOfMonth
+                        ? 'border-l-2 border-l-gray-900'
+                        : ''} {isDayInVisibleMonths
                         ? holiday
                           ? 'bg-amber-50'
                           : isWeekendDay
@@ -468,7 +583,13 @@
                         : 'bg-gray-50'} {isToday ? 'ring-2 ring-inset ring-blue-500' : ''}"
                       title={holiday ? `Feriado: ${holiday.name}` : ''}
                     >
-                      <div class="text-xs {isFirstOfMonth ? 'font-bold' : 'font-medium'} {isDayInVisibleMonths ? 'text-gray-900' : 'text-gray-400'}">
+                      <div
+                        class="text-xs {isFirstOfMonth
+                          ? 'font-bold'
+                          : 'font-medium'} {isDayInVisibleMonths
+                          ? 'text-gray-900'
+                          : 'text-gray-400'}"
+                      >
                         {#if isFirstOfMonth}
                           {format(day, 'd MMM', { locale: es })}
                         {:else}
@@ -476,8 +597,13 @@
                         {/if}
                       </div>
                       {#if holiday}
-                        <div class="text-[10px] text-red-600 font-semibold leading-tight mt-0.5" title={holiday.name}>
-                          {holiday.name.length > 15 ? holiday.name.substring(0, 15) + '...' : holiday.name}
+                        <div
+                          class="text-[10px] text-red-600 font-semibold leading-tight mt-0.5"
+                          title={holiday.name}
+                        >
+                          {holiday.name.length > 15
+                            ? holiday.name.substring(0, 15) + '...'
+                            : holiday.name}
                         </div>
                       {/if}
                     </div>
@@ -486,21 +612,29 @@
 
                 <!-- Vacation bars overlay -->
                 <div class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
-                  <div class="grid grid-cols-7 h-full gap-0 p-1 pt-5">
+                  <div class="relative h-full">
                     {#each segments as segment}
                       {@const isPending = segment.vacation.status === 'Pending'}
                       {@const baseColor = getPersonColorValue(segment.person.id)}
-                      <div
-                        class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate {isPending
+                      {@const cellWidth = 100 / 7}
+                      {@const leftPos = segment.startCol * cellWidth}
+                      {@const width = segment.span * cellWidth}
+                      {@const topPos = 20 + (segment.row ?? 0) * 20}
+                      <button
+                        onclick={(e) => openVacationTooltip(segment.vacation, e)}
+                        class="pointer-events-auto absolute text-xs px-1 py-0.5 rounded text-white truncate text-left h-5 leading-tight {isPending
                           ? ''
-                          : getPersonColor(segment.person.id)}"
-                        style="grid-column: {segment.startCol + 1} / span {segment.span}; grid-row: {(segment.row ?? 0) + 1}; {isPending
+                          : getPersonColor(
+                              segment.person.id
+                            )} cursor-pointer hover:opacity-90 transition-opacity"
+                        style="left: {leftPos}%; width: calc({width}% - 2px); top: {topPos}px; {isPending
                           ? `background: repeating-linear-gradient(45deg, ${baseColor}, ${baseColor} 3px, rgba(60,60,60,0.3) 3px, rgba(60,60,60,0.3) 6px);`
                           : ''}"
-                        title="{segment.person.name} - {segment.vacation.status}"
+                        title="{segment.person.name} - {segment.vacation
+                          .status} (click para detalles)"
                       >
                         {segment.person.name.split(' ')[0]}
-                      </div>
+                      </button>
                     {/each}
                   </div>
                 </div>
@@ -518,7 +652,11 @@
                   ? 'bg-blue-50'
                   : ''}"
               >
-                <div class="writing-mode-vertical text-sm font-bold {isCurrentMonth ? 'text-blue-600' : 'text-gray-700'} capitalize py-2">
+                <div
+                  class="writing-mode-vertical text-sm font-bold {isCurrentMonth
+                    ? 'text-blue-600'
+                    : 'text-gray-700'} capitalize py-2"
+                >
                   {format(weekRow.monthLabel.monthDate, 'MMMM yyyy', { locale: es })}
                 </div>
               </td>
@@ -532,6 +670,14 @@
     <div bind:this={bottomSentinel} class="h-1"></div>
   </div>
 </div>
+
+<!-- Tooltip de detalles de vacación -->
+<VacationTooltip
+  vacation={selectedVacation}
+  position={tooltipPosition}
+  onClose={closeVacationTooltip}
+  onEdit={onEditVacation ? handleEditFromTooltip : undefined}
+/>
 
 <style>
   .writing-mode-vertical {

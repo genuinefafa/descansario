@@ -18,7 +18,7 @@
   let filteredVacations = $derived(() => {
     const fromDate = new Date(filterFromDate);
     return vacations
-      .filter(v => new Date(v.endDate) >= fromDate)
+      .filter((v) => new Date(v.endDate) >= fromDate)
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   });
 
