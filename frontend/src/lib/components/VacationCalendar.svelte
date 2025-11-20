@@ -618,7 +618,7 @@
                       {@const baseColor = getPersonColorValue(segment.person.id)}
                       <button
                         onclick={(e) => openVacationTooltip(segment.vacation, e)}
-                        class="pointer-events-auto text-xs px-1 py-0.5 rounded text-white truncate text-left {isPending
+                        class="pointer-events-auto text-xs px-1 pt-0.5 rounded text-white truncate text-left align-top {isPending
                           ? ''
                           : getPersonColor(
                               segment.person.id
