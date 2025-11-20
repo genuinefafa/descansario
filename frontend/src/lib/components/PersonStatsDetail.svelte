@@ -175,6 +175,17 @@
                     <p class="text-sm text-gray-600 mt-2 italic">"{vacation.notes}"</p>
                   {/if}
                 </div>
+
+                <!-- Botón de editar -->
+                <div class="ml-4">
+                  <a
+                    href="/?tab=vacations&highlight={vacation.id}"
+                    class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 transition"
+                    title="Editar vacación"
+                  >
+                    ✏️ Editar
+                  </a>
+                </div>
               </div>
             </div>
           {/each}
