@@ -1,7 +1,26 @@
 # 🗺️ Roadmap - Descansario
 
 **Última actualización:** 2025-11-20
-**Estado actual:** Sprint 2 completado - Mejora de Visualización del Calendario funcionando
+**Estado actual:** Sprint 3 completado - Dashboard de Estadísticas funcionando
+
+---
+
+## 📑 Índice de Sprints
+
+### ✅ Completados
+- [Sprint 1: Vinculación User ↔ Person](#-sprint-1-vinculación-user--person-completado) - Auto-registro por email
+- [Sprint 2: Mejora Visualización Calendario](#-sprint-2-mejora-visualización-calendario-completado) - Resumen y comparativas
+- [Sprint 3: Dashboard de Estadísticas](#-sprint-3-dashboard-de-estadísticas-completado) - Stats por persona y año
+
+### 🔄 En Planificación
+- [Sprint 4: Estabilización](#-sprint-4-estabilización-tech-debt-2-3-días) - Tech debt y mejoras de UX
+
+### 📋 Backlog (Post-Estabilización)
+- [Sprint 5: Vista de Conflictos/Cobertura](#-sprint-5-vista-de-conflictoscobertura-2-3-días) - Detectar solapamientos
+- [Sprint 6: Exportación iCal](#-sprint-6-exportación-ical-2-3-días) - Sincronización con Google Calendar
+- [Sprint 7: Sistema de Permisos por Rol](#-sprint-7-sistema-de-permisos-por-rol-3-4-días) - Control de acceso fino
+- [Sprint 8: Flujo de Aprobaciones](#-sprint-8-flujo-de-aprobaciones-5-7-días) - Workflow de aprobación
+- [Sprint 9: Notificaciones por Email](#-sprint-9-notificaciones-por-email-4-6-días) - Emails automáticos
 
 ---
 
@@ -22,6 +41,9 @@
 - ✅ **Logging estructurado con Serilog**
 - ✅ **Protección de endpoints con [Authorize]**
 - ✅ **Vinculación User ↔ Person con auto-registro por email**
+- ✅ **Endpoint /api/calendar/summary** - Resumen por persona en rango (Sprint 2)
+- ✅ **Endpoints /api/persons/{id}/stats y /api/stats/overview** (Sprint 3)
+- ✅ **Cálculos con intersección de rangos para estadísticas por año** (Sprint 3)
 
 **Frontend:**
 - ✅ SvelteKit 5 + TypeScript + TailwindCSS
@@ -36,6 +58,9 @@
 - ✅ **Protección de rutas con guards**
 - ✅ **Auto-logout en 401**
 - ✅ **Indicador visual de vinculación User ↔ Person**
+- ✅ **Resumen de calendario con comparativas año sobre año** (Sprint 2)
+- ✅ **Dashboard de estadísticas por persona y año** (Sprint 3)
+- ✅ **WorkingDaysCount calculado on-demand** (Sprint 3 refactor)
 
 **DevOps:**
 - ✅ Docker + Docker Compose para desarrollo
@@ -559,7 +584,216 @@ GET /api/calendar/summary?startDate=2025-07-01&endDate=2025-07-31
 
 ---
 
-## 🚀 Sprint 3: Dashboard de Estadísticas (3-5 días)
+## ✅ Sprint 3: Dashboard de Estadísticas (COMPLETADO)
+
+**Estado:** ✅ Completado el 2025-11-20
+**Branch:** `claude/sprint-3-dashboard-01NYi1EiPsb1F8tASwHWg6ww`
+**Commits:** 5 commits principales
+
+### 🎉 Logros
+
+**Funcionalidad Core:**
+- ✅ Endpoint `/api/persons/{id}/stats` - Estadísticas por persona y año
+- ✅ Endpoint `/api/stats/overview` - Resumen de todas las personas
+- ✅ Cálculos correctos de días por año (intersección de rangos)
+- ✅ Página `/stats` con vista de tarjetas y detalles
+- ✅ Selector de años (rango configurable)
+- ✅ Navegación directa a editar vacaciones desde estadísticas
+
+**Refactors Importantes:**
+- ✅ **WorkingDaysCount eliminado de DB** - ahora se calcula on-demand
+- ✅ Garantiza consistencia siempre actualizada con feriados
+- ✅ Migración `RemoveWorkingDaysCountFromVacations`
+
+**Mejoras de UX:**
+- ✅ Desglose de vacaciones que cruzan años (ej: dic 2025 → ene 2026)
+- ✅ Indicadores visuales por uso (verde/amarillo/rojo)
+- ✅ Botón "Editar" con auto-apertura de formulario
+- ✅ Lista completa de vacaciones del año (no solo próximas)
+
+### 📦 Archivos creados/modificados
+
+**Backend:**
+- `Program.cs` - Endpoints de stats + refactor de todos los GET/POST/PUT para calcular WorkingDaysCount
+- `Vacation.cs` - Eliminada propiedad persistida
+- `DescansarioDbContext.cs` - Eliminada configuración del campo
+- `Migrations/` - Nueva migración para drop column
+
+**Frontend:**
+- `types/stats.ts` - Interfaces `PersonStats`, `StatsOverview`, `VacationInYear`
+- `services/stats.ts` - Servicio de API
+- `components/StatsCard.svelte` - Tarjeta con barra de progreso
+- `components/PersonStatsDetail.svelte` - Vista detallada con todas las vacaciones
+- `routes/stats/+page.svelte` - Página principal de estadísticas
+- `routes/+page.svelte` - Auto-apertura de formulario con `?highlight={id}`
+
+### 🐛 Bugs Corregidos
+
+1. **Cálculos incorrectos por año**: Vacaciones que cruzaban años contaban todos los días en un solo año
+   - Fix: Calcular intersección entre vacación y rango del año
+   - Ejemplo: 20-dic-2025 → 10-ene-2026 ahora cuenta ~9 días en 2025 y ~6 en 2026
+
+2. **WorkingDaysCount desactualizado**: Campo persistido quedaba obsoleto al cambiar feriados
+   - Fix: Eliminar de DB, calcular siempre on-demand con `WorkingDaysCalculator`
+
+### 💡 Decisiones Técnicas
+
+**Por qué eliminar WorkingDaysCount de la DB:**
+- Source of truth único: `StartDate` + `EndDate` + tabla `Holidays`
+- Siempre correcto, sin posibilidad de inconsistencia
+- Si se agrega/edita un feriado, todas las vacaciones se recalculan automáticamente
+- Trade-off aceptable: leve costo computacional vs garantía de correctitud
+
+---
+
+## 🚀 Sprint 4: Estabilización / Tech Debt (2-3 días)
+
+### Objetivo
+Resolver deuda técnica acumulada y mejorar UX antes de continuar con features nuevas.
+
+### 🐛 Issues Identificados
+
+#### 1. **Warning de SvelteKit Fetch** (Prioridad: Media)
+```
+Loading using `window.fetch`. For best results, use the `fetch` that is passed to your `load` function
+```
+
+**Problema:**
+- `api.ts` usa `window.fetch` directamente
+- No aprovecha el `fetch` de SvelteKit (mejor SSR, cookies, deduplicación)
+
+**Solución propuesta:**
+- Refactorizar `api.ts` para aceptar `fetch` opcional
+- Actualizar `+page.ts` para pasar el `fetch` de SvelteKit
+- En componentes cliente seguir usando `window.fetch`
+
+**Esfuerzo:** ~1-2 horas
+
+---
+
+#### 2. **Edición desde Calendario no funciona** (Prioridad: Alta)
+
+**Problema:**
+- Click en vacación desde calendario no abre formulario de edición
+- La funcionalidad `onEditVacation` existe pero parece rota
+
+**Solución propuesta:**
+- Investigar por qué dejó de funcionar
+- Probablemente relacionado con cambios en VacationCalendar.svelte
+- Verificar que el callback se esté pasando correctamente
+
+**Esfuerzo:** ~30 min - 1 hora
+
+---
+
+#### 3. **Refactor a Rutas Independientes** (Prioridad: Alta)
+
+**Problema actual:**
+```
+/                       (todo mezclado con ?tab=X)
+/stats                  (separado ✅)
+```
+
+**Arquitectura propuesta:**
+```
+/                       → Dashboard / Home
+/persons                → Lista de personas
+/persons/new            → Crear persona
+/persons/{id}/edit      → Editar persona
+
+/vacations              → Lista de vacaciones
+/vacations/new          → Crear vacación
+/vacations/{id}/edit    → Editar vacación
+
+/holidays               → Lista de feriados
+/holidays/new           → Crear feriado
+/holidays/{id}/edit     → Editar feriado
+
+/calendar               → Vista de calendario
+/stats                  → Estadísticas (ya existe ✅)
+```
+
+**Beneficios:**
+- ✅ URLs semánticas y compartibles
+- ✅ Botón "Volver" del navegador funciona correctamente
+- ✅ Historial útil
+- ✅ Más fácil de mantener
+
+**Esfuerzo:** ~2-3 horas
+
+---
+
+#### 4. **Mejorar Selector de Fechas** (Prioridad: Baja)
+
+**Problema:**
+- Input nativo `<input type="date">` es poco atractivo
+- UX inconsistente entre navegadores
+
+**Solución propuesta:**
+- Evaluar componentes: date-fns + custom picker, Flatpickr, o similar
+- Implementar selector consistente y atractivo
+- Considerar rango de fechas en un solo componente
+
+**Esfuerzo:** ~1-2 horas
+
+---
+
+#### 5. **AvailableDays debería ser por Año** (Prioridad: Media)
+
+**Problema:**
+- `Person.AvailableDays` es un número fijo (ej: 20)
+- En realidad, los días pueden variar por año (ej: 20 en 2025, 25 en 2026)
+
+**Solución propuesta:**
+- Crear nueva tabla `PersonYearlyAllowance { PersonId, Year, AvailableDays }`
+- Migrar dato existente como default para todos los años
+- Actualizar endpoints de stats para usar año específico
+- Agregar UI para configurar días por año
+
+**Esfuerzo:** ~2-3 horas
+
+**Alternativa temporal:**
+- Dejar como está y documentar la limitación
+- Implementar en futuro cuando sea necesario
+
+---
+
+#### 6. **Agregar Tests** (Prioridad: Media)
+
+**Faltante:**
+- ❌ Tests unitarios backend (cálculos, validaciones)
+- ❌ Tests de integración (endpoints)
+- ❌ Tests E2E frontend (flujos críticos)
+
+**Propuesta MVP:**
+- Backend: Tests para `WorkingDaysCalculator` (crítico)
+- Backend: Tests para endpoints de stats (verificar cálculos)
+- Frontend: Tests para componentes de formularios
+- E2E: Flujo completo de crear/editar/aprobar vacación
+
+**Esfuerzo:** ~3-4 horas (MVP básico)
+
+---
+
+### Checklist Sprint 4
+
+**Alta Prioridad:**
+- [ ] Fix: Edición desde calendario
+- [ ] Refactor: Rutas independientes en lugar de tabs
+- [ ] Tests: Básicos para WorkingDaysCalculator
+
+**Media Prioridad:**
+- [ ] Fix: Warning de SvelteKit fetch
+- [ ] Feature: AvailableDays por año (o documentar limitación)
+- [ ] Tests: Endpoints de stats
+
+**Baja Prioridad:**
+- [ ] UX: Mejorar selector de fechas
+- [ ] Tests: E2E básicos
+
+---
+
+## 🚀 Sprint 3: Dashboard de Estadísticas (REFERENCIA TÉCNICA)
 
 ### Objetivo
 Vista resumen con estadísticas clave para cada persona: días disponibles, usados, pendientes, y restantes.
@@ -818,7 +1052,7 @@ app.MapGet("/api/stats/overview", async (
 
 ---
 
-## 🚀 Sprint 4: Vista de Conflictos/Cobertura (2-3 días)
+## 🚀 Sprint 5: Vista de Conflictos/Cobertura (2-3 días)
 
 ### Objetivo
 Identificar días donde muchas personas están de vacaciones simultáneamente, para prevenir falta de cobertura.
@@ -1014,7 +1248,7 @@ Agregar highlights visuales en el calendario para días con conflictos:
 
 ---
 
-## 🚀 Sprint 5: Exportación iCal (2-3 días)
+## 🚀 Sprint 6: Exportación iCal (2-3 días)
 
 ### Objetivo
 Permitir a los usuarios suscribirse a sus vacaciones desde Google Calendar, Outlook, Apple Calendar, etc.
@@ -1198,7 +1432,7 @@ VERSION:2.0
 
 ---
 
-## 🚀 Sprint 6: Sistema de Permisos por Rol (3-4 días)
+## 🚀 Sprint 7: Sistema de Permisos por Rol (3-4 días)
 
 ### Objetivo
 Implementar control de acceso basado en roles: Users solo ven/editan sus vacaciones, Admins tienen acceso completo.
@@ -1379,7 +1613,7 @@ export function setUser(user: User) {
 
 ---
 
-## 🚀 Sprint 7: Flujo de Aprobaciones (5-7 días)
+## 🚀 Sprint 8: Flujo de Aprobaciones (5-7 días)
 
 ### Objetivo
 Implementar workflow de aprobación: Users crean solicitudes (Pending), Admins aprueban/rechazan.
@@ -1646,7 +1880,7 @@ Por defecto, crear como Pending:
 
 ---
 
-## 🚀 Sprint 8: Notificaciones por Email (4-6 días)
+## 🚀 Sprint 9: Notificaciones por Email (4-6 días)
 
 ### Objetivo
 Enviar emails automáticos cuando cambia el estado de una solicitud de vacaciones.
