@@ -1,7 +1,7 @@
 # 🗺️ Roadmap - Descansario
 
-**Última actualización:** 2025-11-19
-**Estado actual:** Sprint 1 completado - Vinculación User ↔ Person funcionando
+**Última actualización:** 2025-11-20
+**Estado actual:** Sprint 2 completado - Mejora de Visualización del Calendario funcionando
 
 ---
 
@@ -279,7 +279,74 @@ Response should include:
 
 ---
 
-## 🚀 Sprint 2: Mejora Visualización Calendario (2-3 días)
+## ✅ Sprint 2: Mejora Visualización Calendario (COMPLETADO)
+
+**Estado:** ✅ Completado el 2025-11-20
+**Branch:** `claude/sprint-2-01GAaSSrYExeuPcVmWGa52sp`
+**Commits:** 6 commits
+
+### 🎉 Logros
+- ✅ Endpoint `/api/calendar/summary` implementado con cálculo de días en intersección
+- ✅ Componente `CalendarSummary.svelte` con auto-refresh reactivo
+- ✅ Botón contextual "Cargar hasta comienzo de año" / "Cargar año anterior"
+- ✅ Sistema de historial para ocultar secciones cargadas iterativamente
+- ✅ Detalles expandibles por persona con días corridos y días hábiles
+- ✅ Comparativa año sobre año con barras apiladas
+- ✅ Tooltip/popover fijo al hacer click en vacaciones (reemplaza modal)
+- ✅ Bloques de vacaciones con altura fija y texto arriba a la izquierda
+
+### 📦 Archivos creados/modificados
+**Backend:**
+- `backend/Descansario.Api/Program.cs` - Endpoint GET /api/calendar/summary
+
+**Frontend - Nuevos:**
+- `frontend/src/lib/types/calendar.ts` - Interfaz CalendarSummary
+- `frontend/src/lib/services/calendar.ts` - Servicio de calendario
+- `frontend/src/lib/components/CalendarSummary.svelte` - Componente de resumen
+- `frontend/src/lib/components/VacationTooltip.svelte` - Tooltip de detalles
+
+**Frontend - Modificados:**
+- `frontend/src/lib/components/VacationCalendar.svelte` - Integración completa
+- `frontend/src/routes/+page.svelte` - Callback de edición
+
+### 💡 Implementación Técnica Destacada
+
+**1. Cálculo de intersección de rangos:**
+```csharp
+// Backend calcula días hábiles solo en el período visible
+var effectiveStart = vacation.StartDate > rangeStart ? vacation.StartDate : rangeStart;
+var effectiveEnd = vacation.EndDate < rangeEnd ? vacation.EndDate : rangeEnd;
+```
+
+**2. Auto-refresh reactivo:**
+```typescript
+// $effect se dispara cuando cambian vacations, startDate o endDate
+$effect(() => {
+  startDate; endDate; vacations;
+  loadSummary();
+  if (showComparison) loadLastYearSummary();
+});
+```
+
+**3. Sistema de historial tipo stack:**
+```typescript
+// Guardar estado antes de cargar más meses
+monthsHistory = [...monthsHistory, [...months]];
+
+// Restaurar estado anterior
+const previousState = monthsHistory[monthsHistory.length - 1];
+months = [...previousState];
+monthsHistory = monthsHistory.slice(0, -1);
+```
+
+**4. Comparativa año sobre año apilada:**
+- Barra actual: altura h-3, opacidad 100%
+- Barra año anterior: altura h-2, opacidad 60%, justo debajo
+- Fácil comparación visual sin scroll
+
+---
+
+## 🚀 Sprint 2: Mejora Visualización Calendario (REFERENCIA ORIGINAL)
 
 ### Objetivo
 Mostrar en el calendario cuántos días hábiles tiene registrado cada usuario, para visibilidad inmediata de quién está utilizando más vacaciones.
@@ -289,7 +356,7 @@ El calendario muestra slots de vacaciones, pero no hay un resumen rápido de:
 - Cuántos días hábiles tiene cada persona en el rango visible
 - Quién está usando más/menos días
 
-### Solución: Badge de Días Hábiles por Persona
+### Solución Implementada: Resumen Dinámico con Múltiples Mejoras
 
 **Vista propuesta:**
 ```
@@ -451,15 +518,21 @@ Otra opción es agregar tooltips al hover sobre cada slot de vacación:
 
 ### Checklist
 
-- [ ] Crear endpoint `GET /api/calendar/summary`
-- [ ] Implementar helper `CalculateWorkingDaysInRange`
-- [ ] Testing backend: verificar conteo correcto
-- [ ] Crear servicio `calendarService.getSummary()` en frontend
-- [ ] Crear componente `CalendarSummary.svelte`
-- [ ] Integrar en página de calendario
-- [ ] Agregar colores según usage (verde/amarillo/rojo)
-- [ ] Testing: verificar que actualiza al cambiar rango visible
-- [ ] (Opcional) Agregar tooltips en slots individuales
+- [x] Crear endpoint `GET /api/calendar/summary`
+- [x] Implementar helper `CalculateWorkingDaysInRange`
+- [x] Testing backend: verificar conteo correcto
+- [x] Crear servicio `calendarService.getSummary()` en frontend
+- [x] Crear componente `CalendarSummary.svelte`
+- [x] Integrar en página de calendario
+- [x] Agregar colores según usage (verde/amarillo/rojo)
+- [x] Testing: verificar que actualiza al cambiar rango visible
+- [x] ~~(Opcional) Agregar tooltips en slots individuales~~ → Implementado como tooltip completo
+- [x] **BONUS:** Botón contextual de carga (hasta inicio año / año anterior)
+- [x] **BONUS:** Sistema de historial para ocultar secciones cargadas
+- [x] **BONUS:** Detalles expandibles por persona (días corridos vs hábiles)
+- [x] **BONUS:** Comparativa año sobre año con barras apiladas
+- [x] **BONUS:** Tooltip/popover al click en vacaciones con markdown
+- [x] **BONUS:** Bloques de vacaciones con altura fija
 
 ### Testing Manual
 
@@ -1866,18 +1939,19 @@ BackgroundJob.Enqueue(() => emailService.SendVacationApprovedEmail(...));
 
 ## 📋 Resumen de Sprints
 
-| Sprint | Feature | Días | Prioridad |
-|--------|---------|------|-----------|
-| 1 | Unificar User ↔ Person (registro mágico) | 1-2 | 🔴 Crítico |
-| 2 | Mejora visualización calendario | 2-3 | 🟡 Alta |
-| 3 | Dashboard de Estadísticas | 3-5 | 🟡 Alta |
-| 4 | Vista de Conflictos/Cobertura | 2-3 | 🟢 Media |
-| 5 | Exportación iCal | 2-3 | 🟢 Media |
-| 6 | Sistema de Permisos por Rol | 3-4 | 🟡 Alta |
-| 7 | Flujo de Aprobaciones | 5-7 | 🟡 Alta |
-| 8 | Notificaciones por Email | 4-6 | 🟢 Media |
+| Sprint | Feature | Días | Prioridad | Estado |
+|--------|---------|------|-----------|--------|
+| 1 | Unificar User ↔ Person (registro mágico) | 1-2 | 🔴 Crítico | ✅ Completado |
+| 2 | Mejora visualización calendario | 2-3 | 🟡 Alta | ✅ Completado |
+| 3 | Dashboard de Estadísticas | 3-5 | 🟡 Alta | ⏳ Pendiente |
+| 4 | Vista de Conflictos/Cobertura | 2-3 | 🟢 Media | ⏳ Pendiente |
+| 5 | Exportación iCal | 2-3 | 🟢 Media | ⏳ Pendiente |
+| 6 | Sistema de Permisos por Rol | 3-4 | 🟡 Alta | ⏳ Pendiente |
+| 7 | Flujo de Aprobaciones | 5-7 | 🟡 Alta | ⏳ Pendiente |
+| 8 | Notificaciones por Email | 4-6 | 🟢 Media | ⏳ Pendiente |
 
 **Total estimado:** 22-33 días (~4-6 semanas)
+**Completado:** 3-5 días (Sprints 1-2)
 
 ---
 
@@ -1905,8 +1979,9 @@ Sprint 8 (Emails)  ← Al final para no bloquear
 
 **Arrancar por:**
 1. Leer este roadmap completo
-2. Crear branch: `feature/user-person-linking`
-3. Empezar con Sprint 1 (Unificar User ↔ Person)
+2. Revisar Sprint 3 (Dashboard de Estadísticas)
+3. Crear branch: `claude/sprint-3-<session-id>`
+4. Empezar con Sprint 3 o el sprint que elijas según prioridad
 
 **Comandos útiles:**
 ```bash
@@ -1930,5 +2005,13 @@ dotnet ef database update
 
 ---
 
-**Última actualización:** 2025-11-19
-**Próxima revisión:** Después de cada sprint (ajustar estimaciones según experiencia real)
+**Última actualización:** 2025-11-20
+**Próxima revisión:** Después de Sprint 3 (ajustar estimaciones según experiencia real)
+
+## 📝 Notas de Actualización (2025-11-20)
+
+**Sprint 2 Completado:**
+- Implementación superó expectativas con múltiples features bonus
+- Código altamente reactivo usando Svelte 5 runes ($effect, $derived)
+- UX mejorada significativamente con tooltips, historial, y comparativas
+- Sistema listo para continuar con Sprint 3 (Dashboard de Estadísticas)
