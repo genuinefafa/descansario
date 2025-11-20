@@ -123,24 +123,59 @@
       </div>
     {/if}
 
-    <div class="upcoming-vacations">
-      <h3 class="text-lg font-semibold mb-3">Próximas Vacaciones</h3>
+    <div class="all-vacations">
+      <h3 class="text-lg font-semibold mb-3">
+        Todas las Vacaciones de {stats.year}
+        <span class="text-sm font-normal text-gray-500">
+          ({stats.vacationsInYear.length} {stats.vacationsInYear.length === 1 ? 'vacación' : 'vacaciones'})
+        </span>
+      </h3>
 
-      {#if stats.upcomingVacations.length === 0}
-        <p class="text-gray-500 text-sm">No hay vacaciones próximas programadas</p>
+      {#if stats.vacationsInYear.length === 0}
+        <p class="text-gray-500 text-sm">No hay vacaciones registradas para este año</p>
       {:else}
-        <div class="space-y-2">
-          {#each stats.upcomingVacations as vacation}
-            <div class="vacation-item flex justify-between items-center bg-gray-50 p-3 rounded">
-              <div>
-                <p class="font-medium">
-                  {formatDate(vacation.startDate)} - {formatDate(vacation.endDate)}
-                </p>
-                <p class="text-sm text-gray-600">{vacation.workingDaysCount} días hábiles</p>
+        <div class="space-y-3">
+          {#each stats.vacationsInYear as vacation}
+            <div class="vacation-item bg-gray-50 p-4 rounded-lg border {vacation.spansMultipleYears ? 'border-orange-300 bg-orange-50' : 'border-gray-200'}">
+              <div class="flex justify-between items-start mb-2">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <p class="font-medium">
+                      {formatDate(vacation.startDate)} - {formatDate(vacation.endDate)}
+                    </p>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold {getStatusBadgeClass(vacation.status)}">
+                      {getStatusLabel(vacation.status)}
+                    </span>
+                  </div>
+
+                  <!-- Información de días -->
+                  <div class="text-sm text-gray-600 space-y-1">
+                    {#if vacation.spansMultipleYears}
+                      <div class="flex items-center gap-2">
+                        <span class="text-orange-600 font-semibold">⚠ Cruza años</span>
+                      </div>
+                      <div class="bg-white p-2 rounded border border-orange-200">
+                        <p class="font-medium text-gray-700">Desglose para {stats.year}:</p>
+                        <p>
+                          📅 {formatDate(vacation.effectiveStartInYear)} - {formatDate(vacation.effectiveEndInYear)}
+                        </p>
+                        <p>
+                          <span class="font-semibold text-blue-600">{vacation.workingDaysInYear} días hábiles</span>
+                          de {vacation.workingDaysCount} totales
+                        </p>
+                      </div>
+                    {:else}
+                      <p>
+                        <span class="font-semibold text-blue-600">{vacation.workingDaysCount} días hábiles</span>
+                      </p>
+                    {/if}
+                  </div>
+
+                  {#if vacation.notes}
+                    <p class="text-sm text-gray-600 mt-2 italic">"{vacation.notes}"</p>
+                  {/if}
+                </div>
               </div>
-              <span class="px-3 py-1 rounded-full text-xs font-semibold {getStatusBadgeClass(vacation.status)}">
-                {getStatusLabel(vacation.status)}
-              </span>
             </div>
           {/each}
         </div>

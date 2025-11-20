@@ -975,7 +975,7 @@ app.MapDelete("/api/holidays/year/{year:int}", async (int year, DescansarioDbCon
 // ==============================================================
 
 // GET /api/persons/{id}/stats - Estadísticas de una persona por año
-app.MapGet("/api/persons/{id:int}/stats", async (int id, int year, DescansarioDbContext db) =>
+app.MapGet("/api/persons/{id:int}/stats", async (int id, int year, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
 {
     var person = await db.Persons
         .Include(p => p.Vacations)
@@ -987,37 +987,66 @@ app.MapGet("/api/persons/{id:int}/stats", async (int id, int year, DescansarioDb
     var startOfYear = new DateTime(year, 1, 1);
     var endOfYear = new DateTime(year, 12, 31);
 
+    // Filtrar vacaciones que tocan el año (intersección)
     var vacationsInYear = person.Vacations
-        .Where(v => v.StartDate.Year == year || v.EndDate.Year == year)
+        .Where(v => v.StartDate <= endOfYear && v.EndDate >= startOfYear)
         .ToList();
 
-    var approved = vacationsInYear
+    // Helper: calcular días hábiles que caen específicamente en el año
+    async Task<int> CalculateWorkingDaysInYearAsync(Vacation vacation)
+    {
+        // Calcular la intersección entre la vacación y el año
+        var effectiveStart = vacation.StartDate > startOfYear ? vacation.StartDate : startOfYear;
+        var effectiveEnd = vacation.EndDate < endOfYear ? vacation.EndDate : endOfYear;
+
+        // Si no hay intersección, retornar 0
+        if (effectiveStart > effectiveEnd)
+            return 0;
+
+        // Calcular días hábiles solo en la intersección
+        return await calculator.CalculateWorkingDaysAsync(effectiveStart, effectiveEnd);
+    }
+
+    // Calcular días aprobados, pendientes y rechazados (solo los que caen en el año)
+    var approvedTasks = vacationsInYear
         .Where(v => v.Status == VacationStatus.Approved)
-        .Sum(v => v.WorkingDaysCount);
+        .Select(async v => await CalculateWorkingDaysInYearAsync(v));
+    var approved = (await Task.WhenAll(approvedTasks)).Sum();
 
-    var pending = vacationsInYear
+    var pendingTasks = vacationsInYear
         .Where(v => v.Status == VacationStatus.Pending)
-        .Sum(v => v.WorkingDaysCount);
+        .Select(async v => await CalculateWorkingDaysInYearAsync(v));
+    var pending = (await Task.WhenAll(pendingTasks)).Sum();
 
-    var rejected = vacationsInYear
+    var rejectedTasks = vacationsInYear
         .Where(v => v.Status == VacationStatus.Rejected)
-        .Sum(v => v.WorkingDaysCount);
+        .Select(async v => await CalculateWorkingDaysInYearAsync(v));
+    var rejected = (await Task.WhenAll(rejectedTasks)).Sum();
 
     var remaining = person.AvailableDays - approved - pending;
 
-    var upcomingVacations = vacationsInYear
-        .Where(v => v.StartDate >= DateTime.Today)
-        .OrderBy(v => v.StartDate)
-        .Take(5)
-        .Select(v => new
+    // Devolver TODAS las vacaciones del año (ordenadas por fecha) con desglose
+    var allVacationsDetails = new List<object>();
+    foreach (var v in vacationsInYear.OrderBy(v => v.StartDate))
+    {
+        var daysInYear = await CalculateWorkingDaysInYearAsync(v);
+        var effectiveStart = v.StartDate > startOfYear ? v.StartDate : startOfYear;
+        var effectiveEnd = v.EndDate < endOfYear ? v.EndDate : endOfYear;
+
+        allVacationsDetails.Add(new
         {
             v.Id,
             v.StartDate,
             v.EndDate,
-            v.WorkingDaysCount,
-            Status = v.Status.ToString()
-        })
-        .ToList();
+            v.WorkingDaysCount, // Total de la vacación
+            WorkingDaysInYear = daysInYear, // Días que caen en este año
+            EffectiveStartInYear = effectiveStart, // Fecha de inicio efectiva en el año
+            EffectiveEndInYear = effectiveEnd, // Fecha de fin efectiva en el año
+            Status = v.Status.ToString(),
+            v.Notes,
+            SpansMultipleYears = v.StartDate.Year != v.EndDate.Year
+        });
+    }
 
     return Results.Ok(new
     {
@@ -1029,7 +1058,7 @@ app.MapGet("/api/persons/{id:int}/stats", async (int id, int year, DescansarioDb
         Pending = pending,
         Rejected = rejected,
         Remaining = remaining,
-        UpcomingVacations = upcomingVacations
+        VacationsInYear = allVacationsDetails
     });
 })
 .WithName("GetPersonStats")
@@ -1037,38 +1066,63 @@ app.MapGet("/api/persons/{id:int}/stats", async (int id, int year, DescansarioDb
 .RequireAuthorization();
 
 // GET /api/stats/overview - Estadísticas de todas las personas por año
-app.MapGet("/api/stats/overview", async (int year, DescansarioDbContext db) =>
+app.MapGet("/api/stats/overview", async (int year, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
 {
     var persons = await db.Persons
         .Include(p => p.Vacations)
         .ToListAsync();
 
-    var overview = persons.Select(p => new
+    var startOfYear = new DateTime(year, 1, 1);
+    var endOfYear = new DateTime(year, 12, 31);
+
+    // Helper: calcular días hábiles que caen específicamente en el año
+    async Task<int> CalculateWorkingDaysInYearAsync(Vacation vacation)
     {
-        PersonId = p.Id,
-        PersonName = p.Name,
-        Available = p.AvailableDays,
-        Used = p.Vacations
-            .Where(v => v.Status == VacationStatus.Approved &&
-                       v.StartDate.Year == year)
-            .Sum(v => v.WorkingDaysCount),
-        Pending = p.Vacations
-            .Where(v => v.Status == VacationStatus.Pending &&
-                       v.StartDate.Year == year)
-            .Sum(v => v.WorkingDaysCount)
-    })
-    .Select(x => new
+        var effectiveStart = vacation.StartDate > startOfYear ? vacation.StartDate : startOfYear;
+        var effectiveEnd = vacation.EndDate < endOfYear ? vacation.EndDate : endOfYear;
+
+        if (effectiveStart > effectiveEnd)
+            return 0;
+
+        return await calculator.CalculateWorkingDaysAsync(effectiveStart, effectiveEnd);
+    }
+
+    var overviewTasks = persons.Select(async p =>
     {
-        x.PersonId,
-        x.PersonName,
-        x.Available,
-        x.Used,
-        x.Pending,
-        Remaining = x.Available - x.Used - x.Pending,
-        UsagePercentage = x.Available > 0 ? Math.Round((x.Used / (double)x.Available) * 100, 1) : 0
-    })
-    .OrderByDescending(x => x.UsagePercentage)
-    .ToList();
+        // Filtrar vacaciones que tocan el año
+        var vacationsInYear = p.Vacations
+            .Where(v => v.StartDate <= endOfYear && v.EndDate >= startOfYear)
+            .ToList();
+
+        // Calcular días usados (aprobados) y pendientes
+        var usedTasks = vacationsInYear
+            .Where(v => v.Status == VacationStatus.Approved)
+            .Select(async v => await CalculateWorkingDaysInYearAsync(v));
+        var used = (await Task.WhenAll(usedTasks)).Sum();
+
+        var pendingTasks = vacationsInYear
+            .Where(v => v.Status == VacationStatus.Pending)
+            .Select(async v => await CalculateWorkingDaysInYearAsync(v));
+        var pending = (await Task.WhenAll(pendingTasks)).Sum();
+
+        var remaining = p.AvailableDays - used - pending;
+        var usagePercentage = p.AvailableDays > 0 ? Math.Round((used / (double)p.AvailableDays) * 100, 1) : 0;
+
+        return new
+        {
+            PersonId = p.Id,
+            PersonName = p.Name,
+            Available = p.AvailableDays,
+            Used = used,
+            Pending = pending,
+            Remaining = remaining,
+            UsagePercentage = usagePercentage
+        };
+    });
+
+    var overview = (await Task.WhenAll(overviewTasks))
+        .OrderByDescending(x => x.UsagePercentage)
+        .ToList();
 
     return Results.Ok(overview);
 })

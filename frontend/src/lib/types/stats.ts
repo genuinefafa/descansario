@@ -1,9 +1,14 @@
-export interface UpcomingVacation {
+export interface VacationInYear {
   id: number;
   startDate: string;
   endDate: string;
-  workingDaysCount: number;
+  workingDaysCount: number; // Total de días de la vacación
+  workingDaysInYear: number; // Días que caen en el año analizado
+  effectiveStartInYear: string; // Fecha inicio efectiva en el año
+  effectiveEndInYear: string; // Fecha fin efectiva en el año
   status: string;
+  notes: string | null;
+  spansMultipleYears: boolean; // Si cruza múltiples años
 }
 
 export interface PersonStats {
@@ -15,7 +20,7 @@ export interface PersonStats {
   pending: number;
   rejected: number;
   remaining: number;
-  upcomingVacations: UpcomingVacation[];
+  vacationsInYear: VacationInYear[];
 }
 
 export interface StatsOverview {
