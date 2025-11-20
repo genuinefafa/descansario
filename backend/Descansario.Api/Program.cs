@@ -971,6 +971,112 @@ app.MapDelete("/api/holidays/year/{year:int}", async (int year, DescansarioDbCon
 .RequireAuthorization();
 
 // ==============================================================
+// Statistics Endpoints
+// ==============================================================
+
+// GET /api/persons/{id}/stats - Estadísticas de una persona por año
+app.MapGet("/api/persons/{id:int}/stats", async (int id, int year, DescansarioDbContext db) =>
+{
+    var person = await db.Persons
+        .Include(p => p.Vacations)
+        .FirstOrDefaultAsync(p => p.Id == id);
+
+    if (person == null)
+        return Results.NotFound(new { message = $"Persona con ID {id} no encontrada" });
+
+    var startOfYear = new DateTime(year, 1, 1);
+    var endOfYear = new DateTime(year, 12, 31);
+
+    var vacationsInYear = person.Vacations
+        .Where(v => v.StartDate.Year == year || v.EndDate.Year == year)
+        .ToList();
+
+    var approved = vacationsInYear
+        .Where(v => v.Status == VacationStatus.Approved)
+        .Sum(v => v.WorkingDaysCount);
+
+    var pending = vacationsInYear
+        .Where(v => v.Status == VacationStatus.Pending)
+        .Sum(v => v.WorkingDaysCount);
+
+    var rejected = vacationsInYear
+        .Where(v => v.Status == VacationStatus.Rejected)
+        .Sum(v => v.WorkingDaysCount);
+
+    var remaining = person.AvailableDays - approved - pending;
+
+    var upcomingVacations = vacationsInYear
+        .Where(v => v.StartDate >= DateTime.Today)
+        .OrderBy(v => v.StartDate)
+        .Take(5)
+        .Select(v => new
+        {
+            v.Id,
+            v.StartDate,
+            v.EndDate,
+            v.WorkingDaysCount,
+            Status = v.Status.ToString()
+        })
+        .ToList();
+
+    return Results.Ok(new
+    {
+        PersonId = person.Id,
+        PersonName = person.Name,
+        Year = year,
+        Available = person.AvailableDays,
+        Approved = approved,
+        Pending = pending,
+        Rejected = rejected,
+        Remaining = remaining,
+        UpcomingVacations = upcomingVacations
+    });
+})
+.WithName("GetPersonStats")
+.WithTags("Statistics")
+.RequireAuthorization();
+
+// GET /api/stats/overview - Estadísticas de todas las personas por año
+app.MapGet("/api/stats/overview", async (int year, DescansarioDbContext db) =>
+{
+    var persons = await db.Persons
+        .Include(p => p.Vacations)
+        .ToListAsync();
+
+    var overview = persons.Select(p => new
+    {
+        PersonId = p.Id,
+        PersonName = p.Name,
+        Available = p.AvailableDays,
+        Used = p.Vacations
+            .Where(v => v.Status == VacationStatus.Approved &&
+                       v.StartDate.Year == year)
+            .Sum(v => v.WorkingDaysCount),
+        Pending = p.Vacations
+            .Where(v => v.Status == VacationStatus.Pending &&
+                       v.StartDate.Year == year)
+            .Sum(v => v.WorkingDaysCount)
+    })
+    .Select(x => new
+    {
+        x.PersonId,
+        x.PersonName,
+        x.Available,
+        x.Used,
+        x.Pending,
+        Remaining = x.Available - x.Used - x.Pending,
+        UsagePercentage = x.Available > 0 ? Math.Round((x.Used / (double)x.Available) * 100, 1) : 0
+    })
+    .OrderByDescending(x => x.UsagePercentage)
+    .ToList();
+
+    return Results.Ok(overview);
+})
+.WithName("GetStatsOverview")
+.WithTags("Statistics")
+.RequireAuthorization();
+
+// ==============================================================
 // Calendar Endpoints
 // ==============================================================
 
