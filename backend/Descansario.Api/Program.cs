@@ -417,102 +417,126 @@ app.MapDelete("/api/persons/{id:int}", async (int id, DescansarioDbContext db) =
 // ==============================================================
 
 // GET /api/vacations - Listar todas las vacaciones
-app.MapGet("/api/vacations", async (DescansarioDbContext db) =>
+app.MapGet("/api/vacations", async (DescansarioDbContext db, WorkingDaysCalculator calculator) =>
 {
     var vacations = await db.Vacations
         .Include(v => v.Person)
-        .Select(v => new VacationDto
+        .ToListAsync();
+
+    // Calcular WorkingDaysCount dinámicamente para cada vacación
+    var vacationDtos = new List<VacationDto>();
+    foreach (var v in vacations)
+    {
+        var workingDays = await calculator.CalculateWorkingDaysAsync(v.StartDate, v.EndDate);
+        vacationDtos.Add(new VacationDto
         {
             Id = v.Id,
             PersonId = v.PersonId,
             PersonName = v.Person!.Name,
             StartDate = v.StartDate,
             EndDate = v.EndDate,
-            WorkingDaysCount = v.WorkingDaysCount,
+            WorkingDaysCount = workingDays,
             Status = v.Status.ToString(),
             Notes = v.Notes
-        })
-        .ToListAsync();
+        });
+    }
 
-    return Results.Ok(vacations);
+    return Results.Ok(vacationDtos);
 })
 .WithName("GetVacations")
 .WithTags("Vacations")
 .RequireAuthorization();
 
 // GET /api/vacations/person/{personId} - Listar vacaciones de una persona
-app.MapGet("/api/vacations/person/{personId:int}", async (int personId, DescansarioDbContext db) =>
+app.MapGet("/api/vacations/person/{personId:int}", async (int personId, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
 {
     var vacations = await db.Vacations
         .Include(v => v.Person)
         .Where(v => v.PersonId == personId)
-        .Select(v => new VacationDto
+        .ToListAsync();
+
+    // Calcular WorkingDaysCount dinámicamente para cada vacación
+    var vacationDtos = new List<VacationDto>();
+    foreach (var v in vacations)
+    {
+        var workingDays = await calculator.CalculateWorkingDaysAsync(v.StartDate, v.EndDate);
+        vacationDtos.Add(new VacationDto
         {
             Id = v.Id,
             PersonId = v.PersonId,
             PersonName = v.Person!.Name,
             StartDate = v.StartDate,
             EndDate = v.EndDate,
-            WorkingDaysCount = v.WorkingDaysCount,
+            WorkingDaysCount = workingDays,
             Status = v.Status.ToString(),
             Notes = v.Notes
-        })
-        .ToListAsync();
+        });
+    }
 
-    return Results.Ok(vacations);
+    return Results.Ok(vacationDtos);
 })
 .WithName("GetVacationsByPerson")
 .WithTags("Vacations")
 .RequireAuthorization();
 
 // GET /api/vacations/overlap?startDate={start}&endDate={end} - Verificar solapamiento de vacaciones
-app.MapGet("/api/vacations/overlap", async (DateTime startDate, DateTime endDate, DescansarioDbContext db) =>
+app.MapGet("/api/vacations/overlap", async (DateTime startDate, DateTime endDate, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
 {
-    var overlappingVacations = await db.Vacations
+    var vacations = await db.Vacations
         .Include(v => v.Person)
         .Where(v => v.StartDate <= endDate && v.EndDate >= startDate)
-        .Select(v => new VacationDto
+        .ToListAsync();
+
+    // Calcular WorkingDaysCount dinámicamente para cada vacación
+    var vacationDtos = new List<VacationDto>();
+    foreach (var v in vacations)
+    {
+        var workingDays = await calculator.CalculateWorkingDaysAsync(v.StartDate, v.EndDate);
+        vacationDtos.Add(new VacationDto
         {
             Id = v.Id,
             PersonId = v.PersonId,
             PersonName = v.Person!.Name,
             StartDate = v.StartDate,
             EndDate = v.EndDate,
-            WorkingDaysCount = v.WorkingDaysCount,
+            WorkingDaysCount = workingDays,
             Status = v.Status.ToString(),
             Notes = v.Notes
-        })
-        .ToListAsync();
+        });
+    }
 
-    return Results.Ok(overlappingVacations);
+    return Results.Ok(vacationDtos);
 })
 .WithName("GetOverlappingVacations")
 .WithTags("Vacations")
 .RequireAuthorization();
 
 // GET /api/vacations/{id} - Obtener una vacación por ID
-app.MapGet("/api/vacations/{id:int}", async (int id, DescansarioDbContext db) =>
+app.MapGet("/api/vacations/{id:int}", async (int id, DescansarioDbContext db, WorkingDaysCalculator calculator) =>
 {
     var vacation = await db.Vacations
         .Include(v => v.Person)
-        .Where(v => v.Id == id)
-        .Select(v => new VacationDto
-        {
-            Id = v.Id,
-            PersonId = v.PersonId,
-            PersonName = v.Person!.Name,
-            StartDate = v.StartDate,
-            EndDate = v.EndDate,
-            WorkingDaysCount = v.WorkingDaysCount,
-            Status = v.Status.ToString(),
-            Notes = v.Notes
-        })
-        .FirstOrDefaultAsync();
+        .FirstOrDefaultAsync(v => v.Id == id);
 
     if (vacation == null)
         return Results.NotFound(new { message = $"Vacación con ID {id} no encontrada" });
 
-    return Results.Ok(vacation);
+    // Calcular WorkingDaysCount dinámicamente
+    var workingDays = await calculator.CalculateWorkingDaysAsync(vacation.StartDate, vacation.EndDate);
+
+    var vacationDto = new VacationDto
+    {
+        Id = vacation.Id,
+        PersonId = vacation.PersonId,
+        PersonName = vacation.Person!.Name,
+        StartDate = vacation.StartDate,
+        EndDate = vacation.EndDate,
+        WorkingDaysCount = workingDays,
+        Status = vacation.Status.ToString(),
+        Notes = vacation.Notes
+    };
+
+    return Results.Ok(vacationDto);
 })
 .WithName("GetVacationById")
 .WithTags("Vacations")
@@ -534,9 +558,6 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
         return Results.BadRequest(new { message = "La persona especificada no existe" });
     }
 
-    // Calcular días hábiles
-    var workingDays = await calculator.CalculateWorkingDaysAsync(dto.StartDate, dto.EndDate);
-
     // Parsear el status del DTO o usar Pending por defecto
     var status = VacationStatus.Pending;
     if (!string.IsNullOrEmpty(dto.Status) && Enum.TryParse<VacationStatus>(dto.Status, out var parsedStatus))
@@ -549,7 +570,7 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
         PersonId = dto.PersonId,
         StartDate = dto.StartDate,
         EndDate = dto.EndDate,
-        WorkingDaysCount = workingDays,
+        // WorkingDaysCount ya NO se persiste - se calcula on-demand
         Status = status,
         Notes = dto.Notes
     };
@@ -560,6 +581,9 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
     // Cargar la persona para el DTO de respuesta
     await db.Entry(vacation).Reference(v => v.Person).LoadAsync();
 
+    // Calcular días hábiles para la respuesta
+    var workingDays = await calculator.CalculateWorkingDaysAsync(vacation.StartDate, vacation.EndDate);
+
     var vacationDto = new VacationDto
     {
         Id = vacation.Id,
@@ -567,7 +591,7 @@ app.MapPost("/api/vacations", async (CreateVacationDto dto, DescansarioDbContext
         PersonName = vacation.Person!.Name,
         StartDate = vacation.StartDate,
         EndDate = vacation.EndDate,
-        WorkingDaysCount = vacation.WorkingDaysCount,
+        WorkingDaysCount = workingDays,
         Status = vacation.Status.ToString(),
         Notes = vacation.Notes
     };
@@ -599,12 +623,6 @@ app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, Desc
         return Results.BadRequest(new { message = "La persona especificada no existe" });
     }
 
-    // Recalcular días hábiles si las fechas cambiaron
-    if (vacation.StartDate != dto.StartDate || vacation.EndDate != dto.EndDate)
-    {
-        vacation.WorkingDaysCount = await calculator.CalculateWorkingDaysAsync(dto.StartDate, dto.EndDate);
-    }
-
     vacation.PersonId = dto.PersonId;
     vacation.StartDate = dto.StartDate;
     vacation.EndDate = dto.EndDate;
@@ -621,6 +639,9 @@ app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, Desc
     // Cargar la persona para el DTO de respuesta
     await db.Entry(vacation).Reference(v => v.Person).LoadAsync();
 
+    // Calcular días hábiles para la respuesta
+    var workingDays = await calculator.CalculateWorkingDaysAsync(vacation.StartDate, vacation.EndDate);
+
     var vacationDto = new VacationDto
     {
         Id = vacation.Id,
@@ -628,7 +649,7 @@ app.MapPut("/api/vacations/{id:int}", async (int id, UpdateVacationDto dto, Desc
         PersonName = vacation.Person!.Name,
         StartDate = vacation.StartDate,
         EndDate = vacation.EndDate,
-        WorkingDaysCount = vacation.WorkingDaysCount,
+        WorkingDaysCount = workingDays,
         Status = vacation.Status.ToString(),
         Notes = vacation.Notes
     };
@@ -1033,12 +1054,15 @@ app.MapGet("/api/persons/{id:int}/stats", async (int id, int year, DescansarioDb
         var effectiveStart = v.StartDate > startOfYear ? v.StartDate : startOfYear;
         var effectiveEnd = v.EndDate < endOfYear ? v.EndDate : endOfYear;
 
+        // Calcular días hábiles totales de la vacación (completa, sin filtrar por año)
+        var totalWorkingDays = await calculator.CalculateWorkingDaysAsync(v.StartDate, v.EndDate);
+
         allVacationsDetails.Add(new
         {
             v.Id,
             v.StartDate,
             v.EndDate,
-            v.WorkingDaysCount, // Total de la vacación
+            WorkingDaysCount = totalWorkingDays, // Total de la vacación
             WorkingDaysInYear = daysInYear, // Días que caen en este año
             EffectiveStartInYear = effectiveStart, // Fecha de inicio efectiva en el año
             EffectiveEndInYear = effectiveEnd, // Fecha de fin efectiva en el año
