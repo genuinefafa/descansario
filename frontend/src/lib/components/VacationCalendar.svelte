@@ -687,6 +687,16 @@
 
   <!-- Load Next Button (contextual) -->
   <div class="mt-4 space-y-2">
+    <!-- Hide Last Loaded Button (solo si hay historial) -->
+    {#if monthsHistory.length > 0}
+      <button
+        onclick={hideLastLoaded}
+        class="w-full px-4 py-2 bg-amber-50 hover:bg-amber-100 rounded-md text-amber-700 font-medium border border-amber-300"
+      >
+        ↩ Deshacer última carga
+      </button>
+    {/if}
+
     <button
       onclick={loadNext}
       class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
@@ -697,16 +707,6 @@
         ↓ Cargar hasta fin de año
       {/if}
     </button>
-
-    <!-- Hide Last Loaded Button (solo si hay historial) -->
-    {#if monthsHistory.length > 0}
-      <button
-        onclick={hideLastLoaded}
-        class="w-full px-4 py-2 bg-amber-50 hover:bg-amber-100 rounded-md text-amber-700 font-medium border border-amber-300"
-      >
-        ↩ Deshacer última carga
-      </button>
-    {/if}
   </div>
   </div>
   <!-- Fin del calendario principal -->
