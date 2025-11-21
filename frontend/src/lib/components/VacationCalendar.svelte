@@ -392,23 +392,22 @@
     return assignRows(segments);
   }
 
-  // Detectar si ya tenemos cargado el fin del año actual
+  // Detectar si el último mes cargado es diciembre (fin de su año)
   const hasCurrentYearEnd = $derived(() => {
     if (months.length === 0) return false;
     const lastMonth = months[months.length - 1];
-    const currentYear = today.getFullYear();
-    const decemberOfCurrentYear = new Date(currentYear, 11, 1); // December
-    return lastMonth >= decemberOfCurrentYear;
+    // Verificar si el último mes es diciembre (mes 11)
+    return lastMonth.getMonth() === 11;
   });
 
-  // Cargar hasta el fin del año actual
+  // Cargar hasta el fin del año del último mes cargado
   function loadToEndOfCurrentYear() {
     const lastMonth = months[months.length - 1];
-    const currentYear = today.getFullYear();
-    const decemberOfCurrentYear = new Date(currentYear, 11, 1);
+    const yearOfLastMonth = lastMonth.getFullYear();
+    const decemberOfThatYear = new Date(yearOfLastMonth, 11, 1); // December del año del último mes
 
-    // Si ya tenemos diciembre del año actual, no hacer nada
-    if (lastMonth >= decemberOfCurrentYear) return;
+    // Si ya tenemos diciembre de ese año, no hacer nada
+    if (lastMonth >= decemberOfThatYear) return;
 
     // Guardar estado actual en historial antes de modificar
     monthsHistory = [...monthsHistory, [...months]];
@@ -416,7 +415,7 @@
     const newMonths: Date[] = [];
     let currentMonth = addMonths(lastMonth, 1);
 
-    while (currentMonth <= decemberOfCurrentYear) {
+    while (currentMonth <= decemberOfThatYear) {
       newMonths.push(currentMonth);
       currentMonth = addMonths(currentMonth, 1);
     }
