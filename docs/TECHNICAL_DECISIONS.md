@@ -115,4 +115,98 @@ Migrar de arquitectura de tabs (`/?tab=persons`) a rutas independientes (`/perso
 - Código más mantenible (cada ruta en su archivo)
 - Mejor separación de responsabilidades
 - Layout compartido con navegación global
-- Edición desde calendario ahora navega a `/vacations?highlight={id}`
+- ~~Edición desde calendario ahora navega a `/vacations?highlight={id}`~~ (Obsoleto - ver Drawer Pattern)
+
+---
+
+## Sprint 4 - Drawer Pattern para Formularios
+
+**Fecha:** 2025-11-21
+
+**Problema:**
+Después del refactor a rutas independientes, surgieron problemas de UX:
+1. Al editar desde calendario y presionar "Cancelar", el usuario quedaba en la página de vacaciones (perdía contexto)
+2. Al editar desde la lista de vacaciones, se reemplazaba toda la vista con el formulario (perdía filtros y scroll)
+3. Gestionar estado en URLs (`?highlight={id}`, filtros, posición de scroll) era complejo y frágil
+
+**Contexto:**
+- Las apps modernas (Gmail, Linear, Notion) usan drawers/sidebars para edición
+- El usuario espera mantener contexto visual al editar
+- El patrón de "reemplazar página completa" es antiguo y menos intuitivo
+
+**Decisión:**
+Implementar patrón **Drawer/Sidebar deslizable** para todos los formularios de edición/creación.
+
+**Implementación:**
+
+1. **Componente genérico `Drawer.svelte`:**
+   - Panel deslizable desde la derecha (max-width: 2xl)
+   - Overlay semi-transparente con click para cerrar
+   - Botón X en la esquina superior derecha
+   - Cierre con tecla ESC
+   - Animaciones suaves (slide-in/out)
+   - Previene scroll del body cuando está abierto
+   - 100% reutilizable, recibe children via Svelte 5 snippets
+
+2. **Wrappers específicos:**
+   - `VacationFormDrawer.svelte`
+   - `PersonFormDrawer.svelte`
+   - `HolidayFormDrawer.svelte`
+   - Cada uno envuelve el formulario existente y maneja el ciclo de vida
+
+3. **Integración en páginas:**
+   - `/calendar` - Drawer al hacer click en editar vacación
+   - `/vacations` - Lista siempre visible, drawer para crear/editar
+   - `/persons` - Lista siempre visible, drawer para crear/editar
+   - `/holidays` - Lista siempre visible, drawer para crear/editar
+
+**Beneficios:**
+
+1. **UX superior:**
+   - ✅ Usuario mantiene contexto visual (ve la lista/calendario detrás del drawer)
+   - ✅ Scroll position preservado automáticamente
+   - ✅ Filtros de búsqueda preservados automáticamente
+   - ✅ Estado del calendario preservado (meses cargados, posición)
+   - ✅ Transición más rápida y fluida
+   - ✅ Cierre intuitivo (X, ESC, click fuera)
+
+2. **Código más simple:**
+   - ✅ No necesita gestionar estado en URL
+   - ✅ No necesita lógica de `?highlight={id}`
+   - ✅ No necesita sincronizar filtros con query params
+   - ✅ Estado local simple (`isDrawerOpen: boolean`)
+
+3. **Mantenibilidad:**
+   - ✅ Componente `Drawer.svelte` es 100% reutilizable
+   - ✅ Formularios no cambiaron (solo se envuelven)
+   - ✅ Fácil agregar drawers para nuevas features
+
+4. **Patrón estándar:**
+   - ✅ Usado en apps modernas de referencia
+   - ✅ Usuarios lo reconocen inmediatamente
+   - ✅ Expectations claros de comportamiento
+
+**Alternativas descartadas:**
+
+1. **Gestionar estado en URL:**
+   - ❌ Demasiado complejo (filtros, scroll, meses cargados del calendario)
+   - ❌ Muchos edge cases difíciles de manejar
+   - ❌ URLs largas y feas
+   - ✅ Pro: URLs compartibles (pero ¿realmente se necesita compartir "editar vacación #123"?)
+
+2. **Modal centrado:**
+   - ❌ Pierde contexto visual completamente
+   - ❌ Menos espacio para formularios largos
+   - ✅ Pro: Más simple de implementar
+
+3. **Inline expansion:**
+   - ❌ Hace scroll de la página impredecible
+   - ❌ Dificulta ver el contexto original
+   - ✅ Pro: No requiere overlay
+
+**Breaking changes:**
+- Eliminada lógica de `?highlight={id}` (ya no necesaria)
+- Formularios ya no se pueden mostrar inline (siempre en drawer)
+
+**Conclusión:**
+El drawer pattern resuelve todos los problemas de UX identificados de forma elegante y con código más simple. Es la solución correcta para este tipo de aplicación.
