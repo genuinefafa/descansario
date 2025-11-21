@@ -4,6 +4,7 @@
   import type { Holiday } from '$lib/types/holiday';
   import { vacationsService } from '$lib/services/vacations';
   import { parseISO } from 'date-fns';
+  import MarkdownEditor from './MarkdownEditor.svelte';
 
   interface Props {
     vacation?: Vacation | null;
@@ -243,16 +244,8 @@
     </div>
 
     <div>
-      <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">
-        Notas <span class="text-gray-500 text-xs font-normal">(soporte Markdown)</span>
-      </label>
-      <textarea
-        id="notes"
-        bind:value={notes}
-        rows="4"
-        placeholder="Agrega notas adicionales..."
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-      ></textarea>
+      <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+      <MarkdownEditor bind:value={notes} id="notes" placeholder="Agrega notas adicionales..." rows={4} />
     </div>
 
     <div class="flex gap-3 pt-4">
