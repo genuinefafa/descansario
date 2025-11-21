@@ -52,6 +52,9 @@
   let selectedVacation = $state<Vacation | null>(null);
   let tooltipPosition = $state<{ x: number; y: number } | null>(null);
 
+  // Estado del sidebar de resumen
+  let isSummaryOpen = $state(true);
+
   // Helper para encontrar feriado en una fecha
   function getHolidayForDate(date: Date): Holiday | undefined {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -482,22 +485,31 @@
   });
 </script>
 
-<!-- Calendar Summary Component -->
-<CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} {vacations} />
-
-<div class="bg-white rounded-lg shadow-md p-6">
-  <!-- Calendar Header -->
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-2xl font-bold text-gray-900">Calendario de Vacaciones</h2>
-    <div class="flex gap-2">
-      <button
-        onclick={goToToday}
-        class="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-md text-blue-700 font-medium"
-      >
-        Ir a Hoy
-      </button>
+<!-- Layout con calendario y sidebar -->
+<div class="flex gap-4">
+  <!-- Calendario principal -->
+  <div class="flex-1 bg-white rounded-lg shadow-md p-6">
+    <!-- Calendar Header -->
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-gray-900">Calendario de Vacaciones</h2>
+      <div class="flex gap-2">
+        <button
+          onclick={() => (isSummaryOpen = !isSummaryOpen)}
+          class="px-4 py-2 rounded-md font-medium transition-colors {isSummaryOpen
+            ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}"
+          title={isSummaryOpen ? 'Ocultar resumen' : 'Mostrar resumen'}
+        >
+          {isSummaryOpen ? '📊 ←' : '→ 📊'}
+        </button>
+        <button
+          onclick={goToToday}
+          class="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-md text-blue-700 font-medium"
+        >
+          Ir a Hoy
+        </button>
+      </div>
     </div>
-  </div>
 
   <!-- Legend -->
   <div class="mb-4 flex flex-wrap gap-3">
@@ -669,7 +681,19 @@
     <!-- Bottom sentinel for infinite scroll -->
     <div bind:this={bottomSentinel} class="h-1"></div>
   </div>
+  </div>
+  <!-- Fin del calendario principal -->
+
+  <!-- Sidebar de resumen (colapsable) -->
+  {#if isSummaryOpen}
+    <div class="w-80 flex-shrink-0">
+      <div class="sticky top-20">
+        <CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} {vacations} />
+      </div>
+    </div>
+  {/if}
 </div>
+<!-- Fin del layout flex -->
 
 <!-- Tooltip de detalles de vacación -->
 <VacationTooltip
