@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
   import VacationList from '$lib/components/VacationList.svelte';
-  import VacationForm from '$lib/components/VacationForm.svelte';
+  import VacationFormDrawer from '$lib/components/VacationFormDrawer.svelte';
   import { vacationsService } from '$lib/services/vacations';
   import { personsService } from '$lib/services/persons';
   import { holidaysService } from '$lib/services/holidays';
@@ -13,27 +12,12 @@
   let vacations = $state<Vacation[]>([]);
   let persons = $state<Person[]>([]);
   let holidays = $state<Holiday[]>([]);
-  let showForm = $state(false);
-  let editingVacation = $state<Vacation | null>(null);
   let loading = $state(true);
   let error = $state('');
 
-  // Detect highlight param to auto-open vacation edit form
-  $effect(() => {
-    const highlightId = $page.url.searchParams.get('highlight');
-    if (highlightId && vacations.length > 0 && !showForm) {
-      const vacationId = parseInt(highlightId);
-      const vacation = vacations.find((v) => v.id === vacationId);
-      if (vacation) {
-        editingVacation = vacation;
-        showForm = true;
-        // Clear query param
-        const url = new URL(window.location.href);
-        url.searchParams.delete('highlight');
-        window.history.replaceState({}, '', url);
-      }
-    }
-  });
+  // Drawer state
+  let isDrawerOpen = $state(false);
+  let editingVacation = $state<Vacation | null>(null);
 
   onMount(async () => {
     await Promise.all([loadVacations(), loadPersons(), loadHolidays()]);
@@ -84,16 +68,16 @@
         await vacationsService.create(data);
       }
       await loadVacations();
-      closeForm();
     } catch (err) {
       error = 'Error al guardar la vacación';
       console.error(err);
+      throw err;
     }
   }
 
   function handleEdit(vacation: Vacation) {
     editingVacation = vacation;
-    showForm = true;
+    isDrawerOpen = true;
   }
 
   async function handleDelete(id: number) {
@@ -110,11 +94,11 @@
 
   function openNewForm() {
     editingVacation = null;
-    showForm = true;
+    isDrawerOpen = true;
   }
 
-  function closeForm() {
-    showForm = false;
+  function closeDrawer() {
+    isDrawerOpen = false;
     editingVacation = null;
   }
 </script>
@@ -135,34 +119,34 @@
     </div>
   {/if}
 
-  {#if showForm}
-    <VacationForm
-      vacation={editingVacation}
-      {persons}
-      {holidays}
-      onSubmit={handleSubmit}
-      onCancel={closeForm}
-    />
-  {:else}
-    <div class="mb-4">
-      <button
-        onclick={openNewForm}
-        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-        disabled={persons.length === 0}
-      >
-        + Nueva Vacación
-      </button>
-      {#if persons.length === 0}
-        <p class="text-sm text-gray-500 mt-2">Primero debes crear al menos una persona</p>
-      {/if}
-    </div>
-
-    {#if loading}
-      <div class="bg-white p-8 rounded-lg shadow-md text-center">
-        <p class="text-gray-500">Cargando...</p>
-      </div>
-    {:else}
-      <VacationList {vacations} onEdit={handleEdit} onDelete={handleDelete} />
+  <div class="mb-4">
+    <button
+      onclick={openNewForm}
+      class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+      disabled={persons.length === 0}
+    >
+      + Nueva Vacación
+    </button>
+    {#if persons.length === 0}
+      <p class="text-sm text-gray-500 mt-2">Primero debes crear al menos una persona</p>
     {/if}
+  </div>
+
+  {#if loading}
+    <div class="bg-white p-8 rounded-lg shadow-md text-center">
+      <p class="text-gray-500">Cargando...</p>
+    </div>
+  {:else}
+    <VacationList {vacations} onEdit={handleEdit} onDelete={handleDelete} />
   {/if}
 </div>
+
+<!-- Drawer para editar/crear vacación -->
+<VacationFormDrawer
+  isOpen={isDrawerOpen}
+  vacation={editingVacation}
+  {persons}
+  {holidays}
+  onClose={closeDrawer}
+  onSubmit={handleSubmit}
+/>

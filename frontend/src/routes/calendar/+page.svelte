@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
   import VacationCalendar from '$lib/components/VacationCalendar.svelte';
+  import VacationFormDrawer from '$lib/components/VacationFormDrawer.svelte';
   import { vacationsService } from '$lib/services/vacations';
   import { personsService } from '$lib/services/persons';
   import { holidaysService } from '$lib/services/holidays';
@@ -14,6 +14,10 @@
   let holidays = $state<Holiday[]>([]);
   let loading = $state(true);
   let error = $state('');
+
+  // Drawer state
+  let isDrawerOpen = $state(false);
+  let editingVacation = $state<Vacation | null>(null);
 
   onMount(async () => {
     await Promise.all([loadVacations(), loadPersons(), loadHolidays()]);
@@ -49,8 +53,36 @@
   }
 
   function handleEditVacation(vacation: Vacation) {
-    // Navigate to vacations page with highlight param
-    goto(`/vacations?highlight=${vacation.id}`);
+    editingVacation = vacation;
+    isDrawerOpen = true;
+  }
+
+  function closeDrawer() {
+    isDrawerOpen = false;
+    editingVacation = null;
+  }
+
+  async function handleVacationSubmit(data: {
+    personId: number;
+    startDate: string;
+    endDate: string;
+    status?: 'Pending' | 'Approved' | 'Rejected';
+  }) {
+    try {
+      if (editingVacation) {
+        await vacationsService.update(editingVacation.id, {
+          ...data,
+          status: data.status || 'Pending',
+        });
+      } else {
+        await vacationsService.create(data);
+      }
+      await loadVacations();
+    } catch (err) {
+      error = 'Error al guardar la vacación';
+      console.error(err);
+      throw err;
+    }
   }
 </script>
 
@@ -73,3 +105,13 @@
     <VacationCalendar {vacations} {persons} {holidays} onEditVacation={handleEditVacation} />
   {/if}
 </div>
+
+<!-- Drawer para editar vacación -->
+<VacationFormDrawer
+  isOpen={isDrawerOpen}
+  vacation={editingVacation}
+  {persons}
+  {holidays}
+  onClose={closeDrawer}
+  onSubmit={handleVacationSubmit}
+/>

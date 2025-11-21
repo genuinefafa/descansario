@@ -1,16 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import HolidayList from '$lib/components/HolidayList.svelte';
-  import HolidayForm from '$lib/components/HolidayForm.svelte';
+  import HolidayFormDrawer from '$lib/components/HolidayFormDrawer.svelte';
   import { holidaysService } from '$lib/services/holidays';
   import type { Holiday } from '$lib/types/holiday';
 
   let holidays = $state<Holiday[]>([]);
-  let showForm = $state(false);
-  let editingHoliday = $state<Holiday | null>(null);
   let isSyncing = $state(false);
   let loading = $state(true);
   let error = $state('');
+
+  // Drawer state
+  let isDrawerOpen = $state(false);
+  let editingHoliday = $state<Holiday | null>(null);
 
   onMount(async () => {
     await loadHolidays();
@@ -42,16 +44,16 @@
         await holidaysService.create(data);
       }
       await loadHolidays();
-      closeForm();
     } catch (err) {
       error = 'Error al guardar el feriado';
       console.error(err);
+      throw err;
     }
   }
 
   function handleEdit(holiday: Holiday) {
     editingHoliday = holiday;
-    showForm = true;
+    isDrawerOpen = true;
   }
 
   async function handleDelete(id: number) {
@@ -119,11 +121,11 @@
 
   function openNewForm() {
     editingHoliday = null;
-    showForm = true;
+    isDrawerOpen = true;
   }
 
-  function closeForm() {
-    showForm = false;
+  function closeDrawer() {
+    isDrawerOpen = false;
     editingHoliday = null;
   }
 </script>
@@ -144,32 +146,36 @@
     </div>
   {/if}
 
-  {#if showForm}
-    <HolidayForm holiday={editingHoliday} onSubmit={handleSubmit} onCancel={closeForm} />
-  {:else}
-    <div class="mb-4">
-      <button
-        onclick={openNewForm}
-        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-      >
-        + Nuevo Feriado
-      </button>
-    </div>
+  <div class="mb-4">
+    <button
+      onclick={openNewForm}
+      class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+    >
+      + Nuevo Feriado
+    </button>
+  </div>
 
-    {#if loading}
-      <div class="bg-white p-8 rounded-lg shadow-md text-center">
-        <p class="text-gray-500">Cargando...</p>
-      </div>
-    {:else}
-      <HolidayList
-        {holidays}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onSync={handleSync}
-        onImport={handleImport}
-        onDeleteByYear={handleDeleteByYear}
-        {isSyncing}
-      />
-    {/if}
+  {#if loading}
+    <div class="bg-white p-8 rounded-lg shadow-md text-center">
+      <p class="text-gray-500">Cargando...</p>
+    </div>
+  {:else}
+    <HolidayList
+      {holidays}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+      onSync={handleSync}
+      onImport={handleImport}
+      onDeleteByYear={handleDeleteByYear}
+      {isSyncing}
+    />
   {/if}
 </div>
+
+<!-- Drawer para editar/crear feriado -->
+<HolidayFormDrawer
+  isOpen={isDrawerOpen}
+  holiday={editingHoliday}
+  onClose={closeDrawer}
+  onSubmit={handleSubmit}
+/>

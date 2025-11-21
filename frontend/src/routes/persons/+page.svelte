@@ -1,16 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
   import PersonList from '$lib/components/PersonList.svelte';
-  import PersonForm from '$lib/components/PersonForm.svelte';
+  import PersonFormDrawer from '$lib/components/PersonFormDrawer.svelte';
   import { personsService } from '$lib/services/persons';
   import type { Person } from '$lib/types/person';
 
   let persons = $state<Person[]>([]);
-  let showForm = $state(false);
-  let editingPerson = $state<Person | null>(null);
   let loading = $state(true);
   let error = $state('');
+
+  // Drawer state
+  let isDrawerOpen = $state(false);
+  let editingPerson = $state<Person | null>(null);
 
   onMount(async () => {
     await loadPersons();
@@ -37,16 +38,16 @@
         await personsService.create(data);
       }
       await loadPersons();
-      closeForm();
     } catch (err) {
       error = 'Error al guardar la persona';
       console.error(err);
+      throw err;
     }
   }
 
   function handleEdit(person: Person) {
     editingPerson = person;
-    showForm = true;
+    isDrawerOpen = true;
   }
 
   async function handleDelete(id: number) {
@@ -63,11 +64,11 @@
 
   function openNewForm() {
     editingPerson = null;
-    showForm = true;
+    isDrawerOpen = true;
   }
 
-  function closeForm() {
-    showForm = false;
+  function closeDrawer() {
+    isDrawerOpen = false;
     editingPerson = null;
   }
 </script>
@@ -88,24 +89,28 @@
     </div>
   {/if}
 
-  {#if showForm}
-    <PersonForm person={editingPerson} onSubmit={handleSubmit} onCancel={closeForm} />
-  {:else}
-    <div class="mb-4">
-      <button
-        onclick={openNewForm}
-        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-      >
-        + Nueva Persona
-      </button>
-    </div>
+  <div class="mb-4">
+    <button
+      onclick={openNewForm}
+      class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+    >
+      + Nueva Persona
+    </button>
+  </div>
 
-    {#if loading}
-      <div class="bg-white p-8 rounded-lg shadow-md text-center">
-        <p class="text-gray-500">Cargando...</p>
-      </div>
-    {:else}
-      <PersonList {persons} onEdit={handleEdit} onDelete={handleDelete} />
-    {/if}
+  {#if loading}
+    <div class="bg-white p-8 rounded-lg shadow-md text-center">
+      <p class="text-gray-500">Cargando...</p>
+    </div>
+  {:else}
+    <PersonList {persons} onEdit={handleEdit} onDelete={handleDelete} />
   {/if}
 </div>
+
+<!-- Drawer para editar/crear persona -->
+<PersonFormDrawer
+  isOpen={isDrawerOpen}
+  person={editingPerson}
+  onClose={closeDrawer}
+  onSubmit={handleSubmit}
+/>
