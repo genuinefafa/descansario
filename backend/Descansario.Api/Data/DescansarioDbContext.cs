@@ -42,7 +42,7 @@ public class DescansarioDbContext : DbContext
             entity.HasKey(v => v.Id);
             entity.Property(v => v.StartDate).IsRequired();
             entity.Property(v => v.EndDate).IsRequired();
-            entity.Property(v => v.WorkingDaysCount).HasDefaultValue(0);
+            // WorkingDaysCount ya NO se persiste - se calcula on-demand
             entity.Property(v => v.Status)
                   .HasConversion<string>()
                   .HasDefaultValue(VacationStatus.Pending);

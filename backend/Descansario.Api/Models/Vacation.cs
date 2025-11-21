@@ -10,7 +10,8 @@ public class Vacation
 
     public DateTime EndDate { get; set; }
 
-    public int WorkingDaysCount { get; set; } // Calculado automáticamente
+    // WorkingDaysCount ya NO se persiste - se calcula on-demand con WorkingDaysCalculator
+    // Esto asegura que siempre esté actualizado si cambian feriados
 
     public VacationStatus Status { get; set; } = VacationStatus.Pending;
 

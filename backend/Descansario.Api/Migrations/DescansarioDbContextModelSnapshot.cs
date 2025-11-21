@@ -194,11 +194,6 @@ namespace Descansario.Api.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("Pending");
 
-                    b.Property<int>("WorkingDaysCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
-
                     b.HasKey("Id");
 
                     b.HasIndex("PersonId");
