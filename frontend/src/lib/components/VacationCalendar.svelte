@@ -69,7 +69,6 @@
   let months = $state<Date[]>([]);
   let monthsHistory = $state<Date[][]>([]); // Stack de estados anteriores
   let allWeeks = $derived(generateAllWeeks());
-  let bottomSentinel: HTMLDivElement;
 
   // Calculate visible date range for CalendarSummary
   let visibleStartDate = $derived(() => {
@@ -404,22 +403,65 @@
     return assignRows(segments);
   }
 
-  // Add months to the end (auto-triggered)
-  function loadNextMonths() {
+  // Detectar si ya tenemos cargado el fin del año actual
+  const hasCurrentYearEnd = $derived(() => {
+    if (months.length === 0) return false;
     const lastMonth = months[months.length - 1];
-    const twoYearsFromNow = addMonths(today, 24);
+    const currentYear = today.getFullYear();
+    const decemberOfCurrentYear = new Date(currentYear, 11, 1); // December
+    return lastMonth >= decemberOfCurrentYear;
+  });
 
-    // Limit to 2 years in the future
-    if (lastMonth >= twoYearsFromNow) return;
+  // Cargar hasta el fin del año actual
+  function loadToEndOfCurrentYear() {
+    const lastMonth = months[months.length - 1];
+    const currentYear = today.getFullYear();
+    const decemberOfCurrentYear = new Date(currentYear, 11, 1);
+
+    // Si ya tenemos diciembre del año actual, no hacer nada
+    if (lastMonth >= decemberOfCurrentYear) return;
+
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
 
     const newMonths: Date[] = [];
-    for (let i = 1; i <= 6; i++) {
-      const newMonth = addMonths(lastMonth, i);
-      if (newMonth <= twoYearsFromNow) {
-        newMonths.push(newMonth);
-      }
+    let currentMonth = addMonths(lastMonth, 1);
+
+    while (currentMonth <= decemberOfCurrentYear) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
     }
+
     months = [...months, ...newMonths];
+  }
+
+  // Cargar el año siguiente completo
+  function loadNextYear() {
+    const lastMonth = months[months.length - 1];
+    const nextYear = new Date(lastMonth.getFullYear() + 1, 0, 1); // January of next year
+
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
+
+    const newMonths: Date[] = [];
+    let currentMonth = startOfMonth(nextYear);
+    const endOfNextYear = new Date(nextYear.getFullYear(), 11, 31);
+
+    while (currentMonth.getFullYear() === nextYear.getFullYear()) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+
+    months = [...months, ...newMonths];
+  }
+
+  // Función dinámica que carga según el contexto
+  function loadNext() {
+    if (hasCurrentYearEnd()) {
+      loadNextYear();
+    } else {
+      loadToEndOfCurrentYear();
+    }
   }
 
   function goToToday() {
@@ -455,33 +497,9 @@
     return format(monthDate, 'MMMM-yyyy', { locale: es }).toLowerCase();
   }
 
-  // Setup infinite scroll (only for bottom)
+  // Initialize months on mount
   onMount(() => {
     initializeMonths();
-
-    // Setup IntersectionObserver for infinite scroll forward
-    const options = {
-      root: null, // Use viewport instead of container
-      rootMargin: '400px',
-      threshold: 0,
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && entry.target === bottomSentinel) {
-          loadNextMonths();
-        }
-      });
-    }, options);
-
-    // Wait for next tick to ensure sentinels are rendered
-    setTimeout(() => {
-      if (bottomSentinel) observer.observe(bottomSentinel);
-    }, 100);
-
-    return () => {
-      observer.disconnect();
-    };
   });
 </script>
 
@@ -677,9 +695,31 @@
         {/each}
       </tbody>
     </table>
+  </div>
 
-    <!-- Bottom sentinel for infinite scroll -->
-    <div bind:this={bottomSentinel} class="h-1"></div>
+  <!-- Load Next Button (contextual) -->
+  <div class="mt-4 space-y-2">
+    <button
+      onclick={loadNext}
+      class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
+    >
+      {#if hasCurrentYearEnd()}
+        ↓ Cargar año siguiente
+      {:else}
+        ↓ Cargar hasta fin de año
+      {/if}
+    </button>
+
+    <!-- Hide Last Loaded Button (solo si hay historial) -->
+    {#if monthsHistory.length > 0}
+      <button
+        onclick={hideLastLoaded}
+        class="w-full px-4 py-2 bg-amber-50 hover:bg-amber-100 rounded-md text-amber-700 font-medium border border-amber-300"
+      >
+        ↑ Ocultar última sección cargada
+      </button>
+    {/if}
+  </div>
   </div>
   </div>
   <!-- Fin del calendario principal -->

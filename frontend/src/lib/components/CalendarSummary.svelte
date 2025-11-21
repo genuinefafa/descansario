@@ -40,8 +40,9 @@
   function getUsageColor(used: number, available: number): string {
     if (available === 0) return 'text-gray-600';
     const percentage = (used / available) * 100;
-    if (percentage < 50) return 'text-green-600';
-    if (percentage < 80) return 'text-yellow-600';
+    if (percentage < 70) return 'text-green-600';
+    if (percentage < 90) return 'text-yellow-600';
+    if (percentage < 95) return 'text-orange-600';
     return 'text-red-600';
   }
 
@@ -49,8 +50,9 @@
   function getProgressBarColor(used: number, available: number): string {
     if (available === 0) return 'bg-gray-400';
     const percentage = (used / available) * 100;
-    if (percentage < 50) return 'bg-green-600';
-    if (percentage < 80) return 'bg-yellow-600';
+    if (percentage < 70) return 'bg-green-600';
+    if (percentage < 90) return 'bg-yellow-600';
+    if (percentage < 95) return 'bg-orange-600';
     return 'bg-red-600';
   }
 
@@ -132,18 +134,23 @@
     expandedPersonIds = newSet;
   }
 
-  // Obtener vacaciones de una persona en el rango visible
+  // Obtener vacaciones de una persona en el rango visible (ordenadas ascendentes)
   function getPersonVacationsInRange(personId: number): Vacation[] {
-    return vacations.filter((v) => {
-      if (v.personId !== personId) return false;
-      if (v.status !== 'Approved') return false;
+    return vacations
+      .filter((v) => {
+        if (v.personId !== personId) return false;
+        if (v.status !== 'Approved') return false;
 
-      const vacStart = parseISO(v.startDate);
-      const vacEnd = parseISO(v.endDate);
+        const vacStart = parseISO(v.startDate);
+        const vacEnd = parseISO(v.endDate);
 
-      // Verificar intersección con el rango visible
-      return vacStart <= endDate && vacEnd >= startDate;
-    });
+        // Verificar intersección con el rango visible
+        return vacStart <= endDate && vacEnd >= startDate;
+      })
+      .sort((a, b) => {
+        // Ordenar ascendente por fecha de inicio
+        return parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime();
+      });
   }
 
   // Calcular días corridos para una vacación (con intersección del rango visible)
@@ -170,21 +177,23 @@
 </script>
 
 <div class="calendar-summary bg-white rounded-lg shadow-md p-6 mb-6">
-  <!-- Header con período y comparativa -->
-  <div class="flex items-center justify-between mb-4">
-    <div>
-      <h3 class="text-xl font-bold text-gray-800">Resumen del Período</h3>
-      <p class="text-sm text-gray-600 mt-0.5">
-        {format(startDate, 'd MMM', { locale: es })} - {format(endDate, 'd MMM yyyy', {
-          locale: es,
-        })}
-      </p>
-    </div>
+  <!-- Header con período -->
+  <div class="mb-4">
+    <h3 class="text-xl font-bold text-gray-800">Resumen del Período</h3>
+    <p class="text-sm text-gray-600 mt-0.5">
+      {format(startDate, 'd MMM', { locale: es })} - {format(endDate, 'd MMM yyyy', {
+        locale: es,
+      })}
+    </p>
+
+    <!-- Toggle comparativa en línea siguiente -->
     <button
       onclick={toggleComparison}
-      class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium transition-colors"
+      class="mt-2 px-3 py-1.5 text-sm rounded-md font-medium transition-colors {showComparison
+        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
     >
-      {showComparison ? '✓ ' : ''}Comparar con año anterior
+      {showComparison ? '✓' : '○'} Comparar con año anterior
     </button>
   </div>
 
