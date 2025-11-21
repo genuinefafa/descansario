@@ -32,11 +32,11 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if isOpen}
-  <!-- Backdrop overlay -->
+  <!-- Backdrop overlay - muy sutil para mantener contexto visual -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+    class="fixed inset-0 bg-black bg-opacity-10 z-40 transition-opacity duration-300"
     class:opacity-0={!isOpen}
     class:opacity-100={isOpen}
     onclick={onClose}
