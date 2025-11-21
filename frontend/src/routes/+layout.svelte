@@ -131,6 +131,13 @@
                       >
                         ✓ {$authStore.user.personName}
                       </span>
+                    {:else}
+                      <span
+                        class="inline-block px-2 py-0.5 text-xs font-semibold text-gray-700 bg-gray-100 rounded"
+                        title="No vinculado a persona"
+                      >
+                        Sin persona
+                      </span>
                     {/if}
                   </div>
                 </div>
@@ -247,6 +254,12 @@
                       class="inline-block px-2 py-0.5 text-xs font-semibold text-green-700 bg-green-100 rounded"
                     >
                       ✓ {$authStore.user.personName}
+                    </span>
+                  {:else}
+                    <span
+                      class="inline-block px-2 py-0.5 text-xs font-semibold text-gray-700 bg-gray-100 rounded"
+                    >
+                      Sin persona
                     </span>
                   {/if}
                 </div>
