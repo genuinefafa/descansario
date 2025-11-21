@@ -44,7 +44,7 @@
 
   <!-- Drawer panel -->
   <div
-    class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-white shadow-2xl transform transition-transform duration-300 ease-in-out overflow-y-auto"
+    class="fixed inset-y-0 right-0 z-50 w-full sm:w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 max-w-2xl bg-white shadow-2xl transform transition-transform duration-300 ease-in-out overflow-y-auto"
     class:translate-x-full={!isOpen}
     class:translate-x-0={isOpen}
     role="dialog"
