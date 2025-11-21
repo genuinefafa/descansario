@@ -70,17 +70,6 @@
   let monthsHistory = $state<Date[][]>([]); // Stack de estados anteriores
   let allWeeks = $derived(generateAllWeeks());
 
-  // Calculate visible date range for CalendarSummary
-  let visibleStartDate = $derived(() => {
-    if (months.length === 0) return today;
-    return startOfMonth(months[0]);
-  });
-
-  let visibleEndDate = $derived(() => {
-    if (months.length === 0) return today;
-    return endOfMonth(months[months.length - 1]);
-  });
-
   // Initialize with current month onwards
   function initializeMonths() {
     const monthsList: Date[] = [];
@@ -717,7 +706,7 @@
   {#if isSummaryOpen}
     <div class="w-80 flex-shrink-0">
       <div class="sticky top-20">
-        <CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} {vacations} />
+        <CalendarSummary {vacations} />
       </div>
     </div>
   {/if}
