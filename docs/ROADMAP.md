@@ -1,7 +1,7 @@
 # 🗺️ Roadmap - Descansario
 
-**Última actualización:** 2025-11-20
-**Estado actual:** Sprint 3 completado - Dashboard de Estadísticas funcionando
+**Última actualización:** 2025-11-21
+**Estado actual:** Sprint 4 completado - Estabilización y mejoras de arquitectura
 
 ---
 
@@ -11,9 +11,9 @@
 - [Sprint 1: Vinculación User ↔ Person](#-sprint-1-vinculación-user--person-completado) - Auto-registro por email
 - [Sprint 2: Mejora Visualización Calendario](#-sprint-2-mejora-visualización-calendario-completado) - Resumen y comparativas
 - [Sprint 3: Dashboard de Estadísticas](#-sprint-3-dashboard-de-estadísticas-completado) - Stats por persona y año
+- [Sprint 4: Estabilización](#-sprint-4-estabilización-completado) - Tech debt y mejoras de UX
 
-### 🔄 En Planificación
-- [Sprint 4: Estabilización](#-sprint-4-estabilización-tech-debt-2-3-días) - Tech debt y mejoras de UX
+### 📋 Próximos Sprints
 
 ### 📋 Backlog (Post-Estabilización)
 - [Sprint 5: Vista de Conflictos/Cobertura](#-sprint-5-vista-de-conflictoscobertura-2-3-días) - Detectar solapamientos
@@ -646,7 +646,57 @@ GET /api/calendar/summary?startDate=2025-07-01&endDate=2025-07-31
 
 ---
 
-## 🚀 Sprint 4: Estabilización / Tech Debt (2-3 días)
+## ✅ Sprint 4: Estabilización (COMPLETADO)
+
+**Estado:** ✅ Completado el 2025-11-21
+**Branch:** `claude/sprint-4-stabilize-01Dg4J61d2jHJieY4fyx6Q5i`
+**Commits:** 1 commit principal
+
+### 🎉 Logros
+
+**Arquitectura:**
+- ✅ Refactor completo a rutas independientes (/, /persons, /vacations, /holidays, /calendar)
+- ✅ Layout compartido con navegación global
+- ✅ Dashboard principal con resumen de estadísticas y acciones rápidas
+- ✅ URLs semánticas y navegación mejorada
+
+**Funcionalidad:**
+- ✅ Fix: Edición desde calendario ahora cambia automáticamente al tab correcto
+- ✅ Navegación desde calendario a vacaciones con `?highlight={id}` para auto-edición
+
+**Testing:**
+- ✅ 16 tests unitarios para WorkingDaysCalculator
+- ✅ Cobertura completa: días hábiles, weekends, feriados, batch calculations
+- ✅ Edge cases: mismo día, fechas invertidas, años bisiestos, rangos largos
+- ✅ Infraestructura: xUnit + EF Core InMemory
+
+**Documentación:**
+- ✅ Decisiones técnicas documentadas (TECHNICAL_DECISIONS.md)
+- ✅ Warning de SvelteKit fetch (decisión consciente de usar window.fetch)
+- ✅ Limitación de AvailableDays por año (postergar feature)
+- ✅ README de tests con instrucciones de ejecución
+
+### 📦 Archivos creados/modificados
+
+**Frontend:**
+- `routes/+layout.svelte` - Navegación global con barra superior
+- `routes/+page.svelte` - Dashboard con tarjetas de resumen
+- `routes/persons/+page.svelte` - Gestión de personas
+- `routes/vacations/+page.svelte` - Gestión de vacaciones con auto-edición
+- `routes/holidays/+page.svelte` - Gestión de feriados
+- `routes/calendar/+page.svelte` - Vista de calendario
+
+**Backend:**
+- `Descansario.Tests/Descansario.Tests.csproj` - Proyecto de tests
+- `Descansario.Tests/Services/WorkingDaysCalculatorTests.cs` - 16 tests
+- `Descansario.Tests/README.md` - Documentación de tests
+
+**Docs:**
+- `docs/TECHNICAL_DECISIONS.md` - Decisiones técnicas documentadas
+
+---
+
+## 🚀 Sprint 4: Estabilización / Tech Debt (REFERENCIA ORIGINAL)
 
 ### Objetivo
 Resolver deuda técnica acumulada y mejorar UX antes de continuar con features nuevas.
@@ -778,18 +828,20 @@ Loading using `window.fetch`. For best results, use the `fetch` that is passed t
 ### Checklist Sprint 4
 
 **Alta Prioridad:**
-- [ ] Fix: Edición desde calendario
-- [ ] Refactor: Rutas independientes en lugar de tabs
-- [ ] Tests: Básicos para WorkingDaysCalculator
+- [x] Fix: Edición desde calendario
+- [x] Refactor: Rutas independientes en lugar de tabs
+- [x] Tests: Básicos para WorkingDaysCalculator
 
 **Media Prioridad:**
-- [ ] Fix: Warning de SvelteKit fetch
-- [ ] Feature: AvailableDays por año (o documentar limitación)
-- [ ] Tests: Endpoints de stats
+- [x] Fix: Warning de SvelteKit fetch (documentado)
+- [x] Feature: AvailableDays por año (documentada limitación)
+- [ ] Tests: Endpoints de stats (postergar para futuro sprint)
 
 **Baja Prioridad:**
-- [ ] UX: Mejorar selector de fechas
-- [ ] Tests: E2E básicos
+- [ ] UX: Mejorar selector de fechas (backlog)
+- [ ] Tests: E2E básicos (backlog)
+
+**Estado:** ✅ **COMPLETADO** (2025-11-21)
 
 ---
 
