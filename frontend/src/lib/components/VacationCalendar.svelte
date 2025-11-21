@@ -711,7 +711,6 @@
     </button>
   </div>
   </div>
-  </div>
   <!-- Fin del calendario principal -->
 
   <!-- Sidebar de resumen (colapsable) -->
