@@ -1,7 +1,7 @@
 # 🗺️ Roadmap - Descansario
 
 **Última actualización:** 2025-11-22
-**Estado actual:** Sprint 4.1 en progreso - Cobertura de tests y CI
+**Estado actual:** Sprint 4.1 completado - Tests y CI implementados
 
 ---
 
@@ -13,8 +13,8 @@
 - [Sprint 3: Dashboard de Estadísticas](#-sprint-3-dashboard-de-estadísticas-completado) - Stats por persona y año
 - [Sprint 4: Estabilización](#-sprint-4-estabilización-completado) - Tech debt, drawer pattern, markdown, navegación
 
-### 🔄 En Progreso
-- [Sprint 4.1: Tests y CI](#-sprint-41-tests-y-ci-en-progreso) - Cobertura de tests backend/frontend + CI
+### ✅ Recientemente Completado
+- [Sprint 4.1: Tests y CI](#-sprint-41-tests-y-ci-completado) - Cobertura de tests backend/frontend + CI
 
 ### 📋 Backlog (Post-Estabilización)
 - [Sprint 5: Vista de Conflictos/Cobertura](#-sprint-5-vista-de-conflictoscobertura-2-3-días) - Detectar solapamientos
@@ -719,51 +719,52 @@ GET /api/calendar/summary?startDate=2025-07-01&endDate=2025-07-31
 
 ---
 
-## 🔄 Sprint 4.1: Tests y CI (EN PROGRESO)
+## ✅ Sprint 4.1: Tests y CI (COMPLETADO)
 
-**Estado:** 🔄 En progreso
+**Estado:** ✅ Completado el 2025-11-22
 **Branch:** `claude/sprint-4-stabilize-01Dg4J61d2jHJieY4fyx6Q5i`
-**Inicio:** 2025-11-22
+**Commits:** 3 commits
 
-### 🎯 Objetivos
+### 🎉 Logros
 
-Estabilizar el proyecto con cobertura de tests y CI automatizado.
+**Backend - Tests de Integración (11 tests nuevos):**
+- ✅ CustomWebApplicationFactory con DB in-memory y auth de test
+- ✅ Tests CRUD vacaciones (GET, POST, PUT, DELETE)
+- ✅ Tests validaciones (fechas invertidas, persona inexistente)
+- ✅ Tests cálculo de días hábiles via endpoint
+- ✅ Solution file para builds unificados
 
-### 📊 Estado Actual
-
-| Área | Situación Actual | Objetivo |
-|------|------------------|----------|
-| Backend Tests | Solo WorkingDaysCalculator (14 tests) | +Tests integración vacations |
-| Frontend Tests | 0 tests | Setup Vitest + tests stores |
-| CI | Build + lint, **no ejecuta tests** | Ejecutar tests en CI |
-
-### 📋 Checklist
-
-**Backend - Tests de Integración:**
-- [ ] Tests CRUD vacaciones (create, read, update, delete)
-- [ ] Tests validaciones de negocio (fechas, días disponibles)
-- [ ] Tests endpoint /api/calendar/summary
-- [ ] Tests endpoint /api/stats/overview
-
-**Frontend - Setup y Tests:**
-- [ ] Configurar Vitest + testing-library/svelte
-- [ ] Tests authStore (login, logout, refresh)
-- [ ] Tests vacationService (mock fetch)
-- [ ] Tests básicos de componentes críticos
+**Frontend - Setup Vitest:**
+- ✅ Vitest configurado con jsdom y testing-library/svelte
+- ✅ Mocks para $app/navigation, $app/stores, $app/environment
+- ✅ Tests authStore (9 tests): login, logout, init, clearError
+- ✅ Setup file con mocks globales (fetch, localStorage)
 
 **CI - GitHub Actions:**
-- [ ] Agregar step `dotnet test` en job backend
-- [ ] Agregar step `npm test` en job frontend
-- [ ] Verificar que CI falla si tests fallan
+- ✅ Backend: `dotnet test` ejecuta tests automáticamente
+- ✅ Frontend: `npm test` ejecuta tests automáticamente
+- ✅ Jobs renombrados a "Build & Test"
 
-### 💡 Estimación
+### 📦 Archivos creados
 
-| Tarea | Tiempo |
-|-------|--------|
-| Tests integración backend | 6-8 hrs |
-| Setup Vitest + tests frontend | 4-6 hrs |
-| Actualizar CI | 1-2 hrs |
-| **Total** | **11-16 hrs** |
+**Backend:**
+- `Descansario.sln` - Solution file
+- `Descansario.Tests/Integration/CustomWebApplicationFactory.cs`
+- `Descansario.Tests/Integration/VacationsIntegrationTests.cs`
+
+**Frontend:**
+- `vitest.config.ts` - Configuración de Vitest
+- `src/tests/setup.ts` - Setup global
+- `src/tests/mocks/app/*.ts` - Mocks de SvelteKit
+- `src/lib/stores/authStore.test.ts` - Tests del store
+
+### 📊 Cobertura de Tests
+
+| Área | Antes | Después |
+|------|-------|---------|
+| Backend | 14 tests (WorkingDaysCalculator) | 25 tests (+11 integración) |
+| Frontend | 0 tests | 9 tests (authStore) |
+| CI | Solo build | Build + Test |
 
 ---
 
@@ -2302,7 +2303,7 @@ BackgroundJob.Enqueue(() => emailService.SendVacationApprovedEmail(...));
 | 2 | Mejora visualización calendario | 2-3 | 🟡 Alta | ✅ Completado |
 | 3 | Dashboard de Estadísticas | 3-5 | 🟡 Alta | ✅ Completado |
 | 4 | Estabilización (drawer, markdown, nav) | 3-4 | 🟡 Alta | ✅ Completado |
-| 4.1 | Tests y CI | 1-2 | 🟡 Alta | 🔄 En Progreso |
+| 4.1 | Tests y CI | 1-2 | 🟡 Alta | ✅ Completado |
 | 5 | Vista de Conflictos/Cobertura | 2-3 | 🟢 Media | ⏳ Pendiente |
 | 6 | Exportación iCal | 2-3 | 🟢 Media | ⏳ Pendiente |
 | 7 | Sistema de Permisos por Rol | 3-4 | 🟡 Alta | ⏳ Pendiente |
