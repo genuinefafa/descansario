@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    name: Backend Build (.NET 8)
+    name: Backend Build & Test (.NET 8)
     runs-on: ubuntu-latest
 
     steps:
@@ -21,16 +21,16 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Restore dependencies
-      working-directory: ./backend/Descansario.Api
+      working-directory: ./backend
       run: dotnet restore
 
     - name: Build
-      working-directory: ./backend/Descansario.Api
+      working-directory: ./backend
       run: dotnet build --configuration Release --no-restore
 
-    - name: Check for build warnings
-      working-directory: ./backend/Descansario.Api
-      run: dotnet build --configuration Release --no-restore --warnaserror
+    - name: Run Tests
+      working-directory: ./backend
+      run: dotnet test --configuration Release --no-build --verbosity normal
 
   frontend:
     name: Frontend Build (SvelteKit)

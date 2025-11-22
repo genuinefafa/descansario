@@ -1229,3 +1229,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Needed for integration tests with WebApplicationFactory
+public partial class Program { }
