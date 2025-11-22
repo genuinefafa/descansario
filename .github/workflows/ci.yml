@@ -33,7 +33,7 @@ jobs:
       run: dotnet test --configuration Release --no-build --verbosity normal
 
   frontend:
-    name: Frontend Build (SvelteKit)
+    name: Frontend Build & Test (SvelteKit)
     runs-on: ubuntu-latest
 
     steps:
@@ -58,6 +58,10 @@ jobs:
     - name: Type check
       working-directory: ./frontend
       run: npm run check
+
+    - name: Run Tests
+      working-directory: ./frontend
+      run: npm test
 
     - name: Build
       working-directory: ./frontend
