@@ -2,6 +2,7 @@
   import type { Vacation } from '$lib/types/vacation';
   import { parseISO, differenceInCalendarDays, format } from 'date-fns';
   import { es } from 'date-fns/locale';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
 
   interface Props {
     vacation: Vacation | null;
@@ -19,20 +20,6 @@
     const end = parseISO(vacation.endDate);
     return differenceInCalendarDays(end, start) + 1;
   });
-
-  // Renderizar markdown simple (negrita, itálica, enlaces)
-  function renderMarkdown(text: string | undefined): string {
-    if (!text) return '';
-
-    return text
-      .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
-      .replace(
-        /\[(.+?)\]\((.+?)\)/g,
-        '<a href="$2" target="_blank" class="text-blue-600 hover:underline">$1</a>'
-      )
-      .replace(/\n/g, '<br>');
-  }
 
   // Obtener color del estado
   function getStatusColor(status: string): string {
@@ -159,10 +146,7 @@
       {#if vacation.notes}
         <div class="text-sm text-gray-700 border-t border-gray-100 pt-3">
           <p class="text-xs font-semibold text-gray-500 mb-1">Notas:</p>
-          <div class="prose prose-sm max-w-none">
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-            {@html renderMarkdown(vacation.notes)}
-          </div>
+          <MarkdownRenderer content={vacation.notes} class="text-sm" />
         </div>
       {/if}
 

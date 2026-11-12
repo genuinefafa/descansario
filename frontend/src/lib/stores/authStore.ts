@@ -10,12 +10,14 @@ export interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
+  isAuthenticated: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
   loading: true,
   error: null,
+  isAuthenticated: false,
 };
 
 function createAuthStore() {
@@ -36,13 +38,13 @@ function createAuthStore() {
         if (user && authService.isAuthenticated()) {
           // Verificar que el token siga siendo válido
           const currentUser = await authService.getCurrentUser();
-          set({ user: currentUser, loading: false, error: null });
+          set({ user: currentUser, loading: false, error: null, isAuthenticated: true });
         } else {
-          set({ user: null, loading: false, error: null });
+          set({ user: null, loading: false, error: null, isAuthenticated: false });
         }
       } catch (error) {
         console.error('Error al inicializar auth store:', error);
-        set({ user: null, loading: false, error: null });
+        set({ user: null, loading: false, error: null, isAuthenticated: false });
       }
     },
 
@@ -54,11 +56,11 @@ function createAuthStore() {
 
       try {
         const response = await authService.login(email, password);
-        set({ user: response.user, loading: false, error: null });
+        set({ user: response.user, loading: false, error: null, isAuthenticated: true });
         return true;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error al iniciar sesión';
-        set({ user: null, loading: false, error: errorMessage });
+        set({ user: null, loading: false, error: errorMessage, isAuthenticated: false });
         return false;
       }
     },
@@ -75,7 +77,7 @@ function createAuthStore() {
         return await this.login(email, password);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error al registrarse';
-        set({ user: null, loading: false, error: errorMessage });
+        set({ user: null, loading: false, error: errorMessage, isAuthenticated: false });
         return false;
       }
     },
@@ -85,7 +87,7 @@ function createAuthStore() {
      */
     logout() {
       authService.logout();
-      set({ user: null, loading: false, error: null });
+      set({ user: null, loading: false, error: null, isAuthenticated: false });
     },
 
     /**

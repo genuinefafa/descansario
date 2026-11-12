@@ -52,6 +52,9 @@
   let selectedVacation = $state<Vacation | null>(null);
   let tooltipPosition = $state<{ x: number; y: number } | null>(null);
 
+  // Estado del sidebar de resumen
+  let isSummaryOpen = $state(true);
+
   // Helper para encontrar feriado en una fecha
   function getHolidayForDate(date: Date): Holiday | undefined {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -66,18 +69,6 @@
   let months = $state<Date[]>([]);
   let monthsHistory = $state<Date[][]>([]); // Stack de estados anteriores
   let allWeeks = $derived(generateAllWeeks());
-  let bottomSentinel: HTMLDivElement;
-
-  // Calculate visible date range for CalendarSummary
-  let visibleStartDate = $derived(() => {
-    if (months.length === 0) return today;
-    return startOfMonth(months[0]);
-  });
-
-  let visibleEndDate = $derived(() => {
-    if (months.length === 0) return today;
-    return endOfMonth(months[months.length - 1]);
-  });
 
   // Initialize with current month onwards
   function initializeMonths() {
@@ -401,22 +392,64 @@
     return assignRows(segments);
   }
 
-  // Add months to the end (auto-triggered)
-  function loadNextMonths() {
+  // Detectar si el último mes cargado es diciembre (fin de su año)
+  const hasCurrentYearEnd = $derived(() => {
+    if (months.length === 0) return false;
     const lastMonth = months[months.length - 1];
-    const twoYearsFromNow = addMonths(today, 24);
+    // Verificar si el último mes es diciembre (mes 11)
+    return lastMonth.getMonth() === 11;
+  });
 
-    // Limit to 2 years in the future
-    if (lastMonth >= twoYearsFromNow) return;
+  // Cargar hasta el fin del año del último mes cargado
+  function loadToEndOfCurrentYear() {
+    const lastMonth = months[months.length - 1];
+    const yearOfLastMonth = lastMonth.getFullYear();
+    const decemberOfThatYear = new Date(yearOfLastMonth, 11, 1); // December del año del último mes
+
+    // Si ya tenemos diciembre de ese año, no hacer nada
+    if (lastMonth >= decemberOfThatYear) return;
+
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
 
     const newMonths: Date[] = [];
-    for (let i = 1; i <= 6; i++) {
-      const newMonth = addMonths(lastMonth, i);
-      if (newMonth <= twoYearsFromNow) {
-        newMonths.push(newMonth);
-      }
+    let currentMonth = addMonths(lastMonth, 1);
+
+    while (currentMonth <= decemberOfThatYear) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
     }
+
     months = [...months, ...newMonths];
+  }
+
+  // Cargar el año siguiente completo
+  function loadNextYear() {
+    const lastMonth = months[months.length - 1];
+    const nextYear = new Date(lastMonth.getFullYear() + 1, 0, 1); // January of next year
+
+    // Guardar estado actual en historial antes de modificar
+    monthsHistory = [...monthsHistory, [...months]];
+
+    const newMonths: Date[] = [];
+    let currentMonth = startOfMonth(nextYear);
+    const endOfNextYear = new Date(nextYear.getFullYear(), 11, 31);
+
+    while (currentMonth.getFullYear() === nextYear.getFullYear()) {
+      newMonths.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+
+    months = [...months, ...newMonths];
+  }
+
+  // Función dinámica que carga según el contexto
+  function loadNext() {
+    if (hasCurrentYearEnd()) {
+      loadNextYear();
+    } else {
+      loadToEndOfCurrentYear();
+    }
   }
 
   function goToToday() {
@@ -452,52 +485,37 @@
     return format(monthDate, 'MMMM-yyyy', { locale: es }).toLowerCase();
   }
 
-  // Setup infinite scroll (only for bottom)
+  // Initialize months on mount
   onMount(() => {
     initializeMonths();
-
-    // Setup IntersectionObserver for infinite scroll forward
-    const options = {
-      root: null, // Use viewport instead of container
-      rootMargin: '400px',
-      threshold: 0,
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && entry.target === bottomSentinel) {
-          loadNextMonths();
-        }
-      });
-    }, options);
-
-    // Wait for next tick to ensure sentinels are rendered
-    setTimeout(() => {
-      if (bottomSentinel) observer.observe(bottomSentinel);
-    }, 100);
-
-    return () => {
-      observer.disconnect();
-    };
   });
 </script>
 
-<!-- Calendar Summary Component -->
-<CalendarSummary startDate={visibleStartDate()} endDate={visibleEndDate()} {vacations} />
-
-<div class="bg-white rounded-lg shadow-md p-6">
-  <!-- Calendar Header -->
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-2xl font-bold text-gray-900">Calendario de Vacaciones</h2>
-    <div class="flex gap-2">
-      <button
-        onclick={goToToday}
-        class="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-md text-blue-700 font-medium"
-      >
-        Ir a Hoy
-      </button>
+<!-- Layout con calendario y sidebar -->
+<div class="flex gap-4">
+  <!-- Calendario principal -->
+  <div class="flex-1 bg-white rounded-lg shadow-md p-6">
+    <!-- Calendar Header -->
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-gray-900">Calendario de Vacaciones</h2>
+      <div class="flex gap-2">
+        <button
+          onclick={() => (isSummaryOpen = !isSummaryOpen)}
+          class="px-4 py-2 rounded-md font-medium transition-colors {isSummaryOpen
+            ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}"
+          title={isSummaryOpen ? 'Ocultar resumen' : 'Mostrar resumen'}
+        >
+          {isSummaryOpen ? '📊 ←' : '→ 📊'}
+        </button>
+        <button
+          onclick={goToToday}
+          class="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-md text-blue-700 font-medium"
+        >
+          Ir a Hoy
+        </button>
+      </div>
     </div>
-  </div>
 
   <!-- Legend -->
   <div class="mb-4 flex flex-wrap gap-3">
@@ -528,7 +546,7 @@
         onclick={hideLastLoaded}
         class="w-full px-4 py-2 bg-amber-50 hover:bg-amber-100 rounded-md text-amber-700 font-medium border border-amber-300"
       >
-        ↓ Ocultar última sección cargada
+        ↩ Deshacer última carga
       </button>
     {/if}
   </div>
@@ -665,11 +683,44 @@
         {/each}
       </tbody>
     </table>
-
-    <!-- Bottom sentinel for infinite scroll -->
-    <div bind:this={bottomSentinel} class="h-1"></div>
   </div>
+
+  <!-- Load Next Button (contextual) -->
+  <div class="mt-4 space-y-2">
+    <!-- Hide Last Loaded Button (solo si hay historial) -->
+    {#if monthsHistory.length > 0}
+      <button
+        onclick={hideLastLoaded}
+        class="w-full px-4 py-2 bg-amber-50 hover:bg-amber-100 rounded-md text-amber-700 font-medium border border-amber-300"
+      >
+        ↩ Deshacer última carga
+      </button>
+    {/if}
+
+    <button
+      onclick={loadNext}
+      class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium border border-gray-300"
+    >
+      {#if hasCurrentYearEnd()}
+        ↓ Cargar año siguiente
+      {:else}
+        ↓ Cargar hasta fin de año
+      {/if}
+    </button>
+  </div>
+  </div>
+  <!-- Fin del calendario principal -->
+
+  <!-- Sidebar de resumen (colapsable) -->
+  {#if isSummaryOpen}
+    <div class="w-80 flex-shrink-0">
+      <div class="sticky top-20">
+        <CalendarSummary {vacations} />
+      </div>
+    </div>
+  {/if}
 </div>
+<!-- Fin del layout flex -->
 
 <!-- Tooltip de detalles de vacación -->
 <VacationTooltip

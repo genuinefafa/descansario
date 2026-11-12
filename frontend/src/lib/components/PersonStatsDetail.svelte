@@ -4,6 +4,7 @@
   import type { PersonStats } from '$lib/types/stats';
   import { format, parseISO } from 'date-fns';
   import { es } from 'date-fns/locale';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
 
   interface Props {
     personId: number;
@@ -172,7 +173,9 @@
                   </div>
 
                   {#if vacation.notes}
-                    <p class="text-sm text-gray-600 mt-2 italic">"{vacation.notes}"</p>
+                    <div class="text-sm text-gray-600 mt-2 border-l-2 border-gray-300 pl-2">
+                      <MarkdownRenderer content={vacation.notes} class="text-sm" />
+                    </div>
                   {/if}
                 </div>
 

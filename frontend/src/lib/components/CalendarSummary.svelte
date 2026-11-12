@@ -16,12 +16,13 @@
   import { es } from 'date-fns/locale';
 
   interface Props {
-    startDate: Date;
-    endDate: Date;
     vacations: Vacation[]; // Para detectar cambios y refrescar
   }
 
-  let { startDate, endDate, vacations }: Props = $props();
+  let { vacations }: Props = $props();
+
+  // Año seleccionado (por defecto el actual)
+  let selectedYear = $state(new Date().getFullYear());
 
   let summary = $state<CalendarSummary[]>([]);
   let lastYearSummary = $state<CalendarSummary[]>([]);
@@ -40,8 +41,9 @@
   function getUsageColor(used: number, available: number): string {
     if (available === 0) return 'text-gray-600';
     const percentage = (used / available) * 100;
-    if (percentage < 50) return 'text-green-600';
-    if (percentage < 80) return 'text-yellow-600';
+    if (percentage < 70) return 'text-green-600';
+    if (percentage < 90) return 'text-yellow-600';
+    if (percentage < 95) return 'text-orange-600';
     return 'text-red-600';
   }
 
@@ -49,8 +51,9 @@
   function getProgressBarColor(used: number, available: number): string {
     if (available === 0) return 'bg-gray-400';
     const percentage = (used / available) * 100;
-    if (percentage < 50) return 'bg-green-600';
-    if (percentage < 80) return 'bg-yellow-600';
+    if (percentage < 70) return 'bg-green-600';
+    if (percentage < 90) return 'bg-yellow-600';
+    if (percentage < 95) return 'bg-orange-600';
     return 'bg-red-600';
   }
 
@@ -60,13 +63,16 @@
     return Math.min((used / available) * 100, 100);
   }
 
-  // Cargar el resumen
+  // Cargar el resumen del año seleccionado
   async function loadSummary() {
     loading = true;
     error = null;
     try {
-      const startDateStr = formatDateForApi(startDate);
-      const endDateStr = formatDateForApi(endDate);
+      const yearStart = new Date(selectedYear, 0, 1); // 1 de enero
+      const yearEnd = new Date(selectedYear, 11, 31); // 31 de diciembre
+
+      const startDateStr = formatDateForApi(yearStart);
+      const endDateStr = formatDateForApi(yearEnd);
       summary = await calendarService.getSummary(startDateStr, endDateStr);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Error al cargar el resumen';
@@ -76,17 +82,18 @@
     }
   }
 
-  // Cargar resumen del año anterior (mismo rango de fechas pero año anterior)
+  // Cargar resumen del año anterior
   async function loadLastYearSummary() {
     if (!showComparison) return;
 
     loadingLastYear = true;
     try {
-      const lastYearStart = subYears(startDate, 1);
-      const lastYearEnd = subYears(endDate, 1);
+      const lastYear = selectedYear - 1;
+      const yearStart = new Date(lastYear, 0, 1);
+      const yearEnd = new Date(lastYear, 11, 31);
 
-      const startDateStr = formatDateForApi(lastYearStart);
-      const endDateStr = formatDateForApi(lastYearEnd);
+      const startDateStr = formatDateForApi(yearStart);
+      const endDateStr = formatDateForApi(yearEnd);
       lastYearSummary = await calendarService.getSummary(startDateStr, endDateStr);
     } catch (err) {
       console.error('Error loading last year summary:', err);
@@ -104,16 +111,15 @@
     }
   }
 
-  // Cargar al montar y cuando cambien las fechas
+  // Cargar al montar
   onMount(() => {
     loadSummary();
   });
 
-  // Recargar cuando cambien las fechas o las vacaciones (usando $effect)
+  // Recargar cuando cambie el año seleccionado o las vacaciones (usando $effect)
   $effect(() => {
     // Acceder a las props para que el efecto se ejecute cuando cambien
-    startDate;
-    endDate;
+    selectedYear;
     vacations; // Detectar cambios en vacaciones
     loadSummary();
     if (showComparison) {
@@ -132,32 +138,43 @@
     expandedPersonIds = newSet;
   }
 
-  // Obtener vacaciones de una persona en el rango visible
+  // Obtener vacaciones de una persona en el año seleccionado (ordenadas ascendentes)
   function getPersonVacationsInRange(personId: number): Vacation[] {
-    return vacations.filter((v) => {
-      if (v.personId !== personId) return false;
-      if (v.status !== 'Approved') return false;
+    const yearStart = new Date(selectedYear, 0, 1);
+    const yearEnd = new Date(selectedYear, 11, 31);
 
-      const vacStart = parseISO(v.startDate);
-      const vacEnd = parseISO(v.endDate);
+    return vacations
+      .filter((v) => {
+        if (v.personId !== personId) return false;
+        if (v.status !== 'Approved') return false;
 
-      // Verificar intersección con el rango visible
-      return vacStart <= endDate && vacEnd >= startDate;
-    });
+        const vacStart = parseISO(v.startDate);
+        const vacEnd = parseISO(v.endDate);
+
+        // Verificar intersección con el año seleccionado
+        return vacStart <= yearEnd && vacEnd >= yearStart;
+      })
+      .sort((a, b) => {
+        // Ordenar ascendente por fecha de inicio
+        return parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime();
+      });
   }
 
-  // Calcular días corridos para una vacación (con intersección del rango visible)
+  // Calcular días corridos para una vacación (con intersección del año seleccionado)
   function getCalendarDaysInRange(vacation: Vacation): {
     start: Date;
     end: Date;
     calendarDays: number;
   } {
+    const yearStart = new Date(selectedYear, 0, 1);
+    const yearEnd = new Date(selectedYear, 11, 31);
+
     const vacStart = parseISO(vacation.startDate);
     const vacEnd = parseISO(vacation.endDate);
 
-    // Calcular la intersección con el rango visible
-    const effectiveStart = max([vacStart, startDate]);
-    const effectiveEnd = min([vacEnd, endDate]);
+    // Calcular la intersección con el año seleccionado
+    const effectiveStart = max([vacStart, yearStart]);
+    const effectiveEnd = min([vacEnd, yearEnd]);
 
     const calendarDays = differenceInCalendarDays(effectiveEnd, effectiveStart) + 1;
 
@@ -170,21 +187,41 @@
 </script>
 
 <div class="calendar-summary bg-white rounded-lg shadow-md p-6 mb-6">
-  <!-- Header con período y comparativa -->
-  <div class="flex items-center justify-between mb-4">
-    <div>
-      <h3 class="text-xl font-bold text-gray-800">Resumen del Período</h3>
-      <p class="text-sm text-gray-600 mt-0.5">
-        {format(startDate, 'd MMM', { locale: es })} - {format(endDate, 'd MMM yyyy', {
-          locale: es,
-        })}
-      </p>
+  <!-- Header con año y navegación -->
+  <div class="mb-4">
+    <h3 class="text-xl font-bold text-gray-800 mb-3">Resumen Anual</h3>
+
+    <!-- Navegación de años -->
+    <div class="flex items-center justify-between gap-3 mb-3">
+      <button
+        onclick={() => selectedYear--}
+        class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium transition-colors"
+        title="Año anterior"
+      >
+        ← {selectedYear - 1}
+      </button>
+
+      <div class="text-center">
+        <span class="text-2xl font-bold text-gray-900">{selectedYear}</span>
+      </div>
+
+      <button
+        onclick={() => selectedYear++}
+        class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium transition-colors"
+        title="Año siguiente"
+      >
+        {selectedYear + 1} →
+      </button>
     </div>
+
+    <!-- Toggle comparativa -->
     <button
       onclick={toggleComparison}
-      class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium transition-colors"
+      class="w-full px-3 py-1.5 text-sm rounded-md font-medium transition-colors {showComparison
+        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
     >
-      {showComparison ? '✓ ' : ''}Comparar con año anterior
+      {showComparison ? '✓' : '○'} Comparar con año anterior
     </button>
   </div>
 

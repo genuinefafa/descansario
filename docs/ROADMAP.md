@@ -1,7 +1,7 @@
 # 🗺️ Roadmap - Descansario
 
-**Última actualización:** 2025-11-20
-**Estado actual:** Sprint 3 completado - Dashboard de Estadísticas funcionando
+**Última actualización:** 2025-11-22
+**Estado actual:** Sprint 4.1 completado - Tests y CI implementados
 
 ---
 
@@ -11,9 +11,10 @@
 - [Sprint 1: Vinculación User ↔ Person](#-sprint-1-vinculación-user--person-completado) - Auto-registro por email
 - [Sprint 2: Mejora Visualización Calendario](#-sprint-2-mejora-visualización-calendario-completado) - Resumen y comparativas
 - [Sprint 3: Dashboard de Estadísticas](#-sprint-3-dashboard-de-estadísticas-completado) - Stats por persona y año
+- [Sprint 4: Estabilización](#-sprint-4-estabilización-completado) - Tech debt, drawer pattern, markdown, navegación
 
-### 🔄 En Planificación
-- [Sprint 4: Estabilización](#-sprint-4-estabilización-tech-debt-2-3-días) - Tech debt y mejoras de UX
+### ✅ Recientemente Completado
+- [Sprint 4.1: Tests y CI](#-sprint-41-tests-y-ci-completado) - Cobertura de tests backend/frontend + CI
 
 ### 📋 Backlog (Post-Estabilización)
 - [Sprint 5: Vista de Conflictos/Cobertura](#-sprint-5-vista-de-conflictoscobertura-2-3-días) - Detectar solapamientos
@@ -646,7 +647,128 @@ GET /api/calendar/summary?startDate=2025-07-01&endDate=2025-07-31
 
 ---
 
-## 🚀 Sprint 4: Estabilización / Tech Debt (2-3 días)
+## ✅ Sprint 4: Estabilización (COMPLETADO)
+
+**Estado:** ✅ Completado el 2025-11-22
+**Branch:** `claude/sprint-4-stabilize-01Dg4J61d2jHJieY4fyx6Q5i`
+**Commits:** 15+ commits
+
+### 🎉 Logros
+
+**Arquitectura y Navegación:**
+- ✅ Refactor completo a rutas independientes (/, /persons, /vacations, /holidays, /calendar)
+- ✅ Layout compartido con navegación global (navbar sticky con z-50)
+- ✅ Dashboard principal con resumen de estadísticas y acciones rápidas
+- ✅ URLs semánticas y navegación mejorada
+- ✅ Menú hamburguesa responsive para móviles
+- ✅ Badge "Sin persona" para usuarios no vinculados
+
+**Drawer Pattern (UX Mayor):**
+- ✅ Formularios en drawer lateral en lugar de modales
+- ✅ Calendario siempre visible durante edición
+- ✅ Overlay con z-index correcto (navbar siempre clickeable)
+- ✅ Animaciones suaves de entrada/salida
+
+**Markdown en Notas:**
+- ✅ `MarkdownRenderer.svelte` - Renderizado seguro con DOMPurify
+- ✅ `MarkdownEditor.svelte` - Editor con tabs Source/Preview
+- ✅ Notas con markdown en: tooltips, modales, stats detail, formularios
+
+**Calendario - Resumen por Año:**
+- ✅ Navegación por año independiente del scroll (← 2024 | **2025** | 2026 →)
+- ✅ Toggle "Comparar con año anterior" debajo del título
+- ✅ Colores escalonados: verde (<70%), amarillo (<90%), naranja (<95%), rojo (≥95%)
+- ✅ Vacaciones ordenadas ascendentemente al expandir
+
+**Calendario - Navegación Iterativa:**
+- ✅ Botones contextuales: "Cargar hasta fin de año" → "Cargar año siguiente"
+- ✅ Sistema de historial (stack) para "Deshacer última carga"
+- ✅ Botón deshacer tanto para pasado como futuro
+- ✅ Orden consistente: deshacer siempre antes de cargar
+
+**Testing:**
+- ✅ 14 tests unitarios para WorkingDaysCalculator
+- ✅ Cobertura completa: días hábiles, weekends, feriados, batch calculations
+- ✅ Edge cases: mismo día, fechas invertidas, años bisiestos, rangos largos
+- ✅ Infraestructura: xUnit + EF Core InMemory
+
+**Documentación:**
+- ✅ Decisiones técnicas documentadas (TECHNICAL_DECISIONS.md)
+- ✅ Warning de SvelteKit fetch (decisión consciente de usar window.fetch)
+- ✅ Limitación de AvailableDays por año (postergar feature)
+
+### 📦 Archivos creados/modificados
+
+**Frontend - Nuevos:**
+- `components/MarkdownRenderer.svelte` - Renderizado markdown seguro
+- `components/MarkdownEditor.svelte` - Editor con tabs Source/Preview
+
+**Frontend - Modificados:**
+- `routes/+layout.svelte` - Navbar sticky, menú móvil, badge sin persona
+- `routes/+page.svelte` - Dashboard con drawer pattern
+- `components/VacationCalendar.svelte` - Navegación iterativa, historial
+- `components/CalendarSummary.svelte` - Navegación por año, colores mejorados
+- `components/VacationForm.svelte` - Drawer lateral + MarkdownEditor
+- `components/VacationTooltip.svelte` - MarkdownRenderer en notas
+- `components/VacationDetailsModal.svelte` - MarkdownRenderer
+- `components/PersonStatsDetail.svelte` - MarkdownRenderer
+- `stores/authStore.ts` - Fix: propiedad isAuthenticated
+
+**Backend:**
+- `Descansario.Tests/Services/WorkingDaysCalculatorTests.cs` - 14 tests
+
+---
+
+## ✅ Sprint 4.1: Tests y CI (COMPLETADO)
+
+**Estado:** ✅ Completado el 2025-11-22
+**Branch:** `claude/sprint-4-stabilize-01Dg4J61d2jHJieY4fyx6Q5i`
+**Commits:** 3 commits
+
+### 🎉 Logros
+
+**Backend - Tests de Integración (11 tests nuevos):**
+- ✅ CustomWebApplicationFactory con DB in-memory y auth de test
+- ✅ Tests CRUD vacaciones (GET, POST, PUT, DELETE)
+- ✅ Tests validaciones (fechas invertidas, persona inexistente)
+- ✅ Tests cálculo de días hábiles via endpoint
+- ✅ Solution file para builds unificados
+
+**Frontend - Setup Vitest:**
+- ✅ Vitest configurado con jsdom y testing-library/svelte
+- ✅ Mocks para $app/navigation, $app/stores, $app/environment
+- ✅ Tests authStore (9 tests): login, logout, init, clearError
+- ✅ Setup file con mocks globales (fetch, localStorage)
+
+**CI - GitHub Actions:**
+- ✅ Backend: `dotnet test` ejecuta tests automáticamente
+- ✅ Frontend: `npm test` ejecuta tests automáticamente
+- ✅ Jobs renombrados a "Build & Test"
+
+### 📦 Archivos creados
+
+**Backend:**
+- `Descansario.sln` - Solution file
+- `Descansario.Tests/Integration/CustomWebApplicationFactory.cs`
+- `Descansario.Tests/Integration/VacationsIntegrationTests.cs`
+
+**Frontend:**
+- `vitest.config.ts` - Configuración de Vitest
+- `src/tests/setup.ts` - Setup global
+- `src/tests/mocks/app/*.ts` - Mocks de SvelteKit
+- `src/lib/stores/authStore.test.ts` - Tests del store
+
+### 📊 Cobertura de Tests
+
+| Área | Antes | Después |
+|------|-------|---------|
+| Backend | 14 tests (WorkingDaysCalculator) | 25 tests (+11 integración) |
+| Frontend | 0 tests | 9 tests (authStore) |
+| CI | Solo build | Build + Test |
+
+---
+
+## 🚀 Sprint 4: Estabilización / Tech Debt (REFERENCIA ORIGINAL)
 
 ### Objetivo
 Resolver deuda técnica acumulada y mejorar UX antes de continuar con features nuevas.
@@ -778,18 +900,20 @@ Loading using `window.fetch`. For best results, use the `fetch` that is passed t
 ### Checklist Sprint 4
 
 **Alta Prioridad:**
-- [ ] Fix: Edición desde calendario
-- [ ] Refactor: Rutas independientes en lugar de tabs
-- [ ] Tests: Básicos para WorkingDaysCalculator
+- [x] Fix: Edición desde calendario
+- [x] Refactor: Rutas independientes en lugar de tabs
+- [x] Tests: Básicos para WorkingDaysCalculator
 
 **Media Prioridad:**
-- [ ] Fix: Warning de SvelteKit fetch
-- [ ] Feature: AvailableDays por año (o documentar limitación)
-- [ ] Tests: Endpoints de stats
+- [x] Fix: Warning de SvelteKit fetch (documentado)
+- [x] Feature: AvailableDays por año (documentada limitación)
+- [ ] Tests: Endpoints de stats (postergar para futuro sprint)
 
 **Baja Prioridad:**
-- [ ] UX: Mejorar selector de fechas
-- [ ] Tests: E2E básicos
+- [ ] UX: Mejorar selector de fechas (backlog)
+- [ ] Tests: E2E básicos (backlog)
+
+**Estado:** ✅ **COMPLETADO** (2025-11-21)
 
 ---
 
@@ -2177,15 +2301,17 @@ BackgroundJob.Enqueue(() => emailService.SendVacationApprovedEmail(...));
 |--------|---------|------|-----------|--------|
 | 1 | Unificar User ↔ Person (registro mágico) | 1-2 | 🔴 Crítico | ✅ Completado |
 | 2 | Mejora visualización calendario | 2-3 | 🟡 Alta | ✅ Completado |
-| 3 | Dashboard de Estadísticas | 3-5 | 🟡 Alta | ⏳ Pendiente |
-| 4 | Vista de Conflictos/Cobertura | 2-3 | 🟢 Media | ⏳ Pendiente |
-| 5 | Exportación iCal | 2-3 | 🟢 Media | ⏳ Pendiente |
-| 6 | Sistema de Permisos por Rol | 3-4 | 🟡 Alta | ⏳ Pendiente |
-| 7 | Flujo de Aprobaciones | 5-7 | 🟡 Alta | ⏳ Pendiente |
-| 8 | Notificaciones por Email | 4-6 | 🟢 Media | ⏳ Pendiente |
+| 3 | Dashboard de Estadísticas | 3-5 | 🟡 Alta | ✅ Completado |
+| 4 | Estabilización (drawer, markdown, nav) | 3-4 | 🟡 Alta | ✅ Completado |
+| 4.1 | Tests y CI | 1-2 | 🟡 Alta | ✅ Completado |
+| 5 | Vista de Conflictos/Cobertura | 2-3 | 🟢 Media | ⏳ Pendiente |
+| 6 | Exportación iCal | 2-3 | 🟢 Media | ⏳ Pendiente |
+| 7 | Sistema de Permisos por Rol | 3-4 | 🟡 Alta | ⏳ Pendiente |
+| 8 | Flujo de Aprobaciones | 5-7 | 🟡 Alta | ⏳ Pendiente |
+| 9 | Notificaciones por Email | 4-6 | 🟢 Media | ⏳ Pendiente |
 
-**Total estimado:** 22-33 días (~4-6 semanas)
-**Completado:** 3-5 días (Sprints 1-2)
+**Total estimado:** 25-38 días (~5-7 semanas)
+**Completado:** ~10 días (Sprints 1-4)
 
 ---
 
@@ -2239,13 +2365,34 @@ dotnet ef database update
 
 ---
 
-**Última actualización:** 2025-11-20
-**Próxima revisión:** Después de Sprint 3 (ajustar estimaciones según experiencia real)
+**Última actualización:** 2025-11-22
+**Próxima revisión:** Después de Sprint 4.1 (tests y CI completos)
 
-## 📝 Notas de Actualización (2025-11-20)
+## 📝 Notas de Actualización
+
+### 2025-11-22 - Sprint 4 Completado + Sprint 4.1 Iniciado
+
+**Sprint 4 - Logros destacados:**
+- Drawer pattern implementado para mejor UX (calendario siempre visible)
+- Markdown completo en notas (editor con Source/Preview)
+- Navegación mejorada (navbar sticky, menú móvil, badge sin persona)
+- Calendario con navegación por año independiente del scroll
+- Botones contextuales iterativos (cargar hasta fin de año → cargar próximo año)
+- Sistema de historial para deshacer cargas
+
+**Sprint 4.1 - Objetivos:**
+- Agregar tests de integración backend (vacations endpoints)
+- Setup Vitest en frontend con tests básicos de stores
+- Actualizar CI para ejecutar tests automáticamente
+
+### 2025-11-20 - Sprints 1-3 Completados
 
 **Sprint 2 Completado:**
 - Implementación superó expectativas con múltiples features bonus
 - Código altamente reactivo usando Svelte 5 runes ($effect, $derived)
 - UX mejorada significativamente con tooltips, historial, y comparativas
-- Sistema listo para continuar con Sprint 3 (Dashboard de Estadísticas)
+
+**Sprint 3 Completado:**
+- Dashboard de estadísticas con tarjetas por persona
+- Cálculos correctos de días por año (intersección de rangos)
+- WorkingDaysCount eliminado de DB (siempre calculado on-demand)

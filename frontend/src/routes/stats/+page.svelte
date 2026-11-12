@@ -44,14 +44,6 @@
 
 <div class="stats-page p-6 max-w-7xl mx-auto">
   <div class="header mb-6">
-    <div class="flex items-center justify-between mb-4">
-      <a
-        href="/"
-        class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-      >
-        ← Volver al Dashboard
-      </a>
-    </div>
     <h1 class="text-3xl font-bold mb-2">📊 Estadísticas de Vacaciones {year}</h1>
     <p class="text-gray-600">Resumen del uso de días de vacaciones por persona</p>
   </div>
