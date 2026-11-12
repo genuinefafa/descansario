@@ -267,7 +267,7 @@ descansario/
 - [ ] Optimización de performance
 - [ ] Documentación de usuario
 
-**Ver `docs/ROADMAP.md` para plan detallado de Fase 5.**
+**Lo pendiente vive en los [issues con label `idea`](https://github.com/genuinefafa/descansario/issues?q=is%3Aopen+label%3Aidea).**
 
 ---
 

@@ -612,7 +612,7 @@ services:
 
 ### Script de Backup
 
-Ver `docs/ROADMAP.md` Sprint 1, Día 6-7 para script completo.
+Ver `scripts/backup.sh` y `scripts/restore.sh`.
 
 ### Restauración
 

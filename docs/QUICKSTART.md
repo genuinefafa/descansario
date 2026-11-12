@@ -19,10 +19,9 @@
 
 **Orden recomendado:**
 
-1. **`docs/ROADMAP.md`** - Plan completo Sprint 1 y 2 (15 min lectura)
-2. **`docs/SECURITY.md`** - Checklist de seguridad (10 min lectura)
-3. **`.env.example`** - Variables de entorno necesarias (2 min)
-4. **`docs/DEPLOY.md`** - Instrucciones de deploy (referencia, no leer todo ahora)
+1. **`docs/SECURITY.md`** - Checklist de seguridad (10 min lectura)
+2. **`.env.example`** - Variables de entorno necesarias (2 min)
+3. **`docs/DEPLOY.md`** - Instrucciones de deploy (referencia, no leer todo ahora)
 
 ---
 
@@ -274,8 +273,8 @@ npm run dev
 
 Una vez que Auth esté funcionando:
 
-1. Crear `docker-compose.prod.yml` (ver ROADMAP.md)
-2. Configurar Caddy para HTTPS (ver ROADMAP.md)
+1. Crear `docker-compose.prod.yml`
+2. Configurar Caddy para HTTPS
 3. Deploy en VM (ver DEPLOY.md)
 4. Configurar backups (ver DEPLOY.md)
 
