@@ -26,10 +26,12 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 services.Remove(descriptor);
             }
 
-            // Add InMemory database
+            // Add InMemory database (una por factory: el nombre se fija afuera del lambda,
+            // que corre en cada request)
+            var dbName = $"TestDb_{Guid.NewGuid()}";
             services.AddDbContext<DescansarioDbContext>(options =>
             {
-                options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}");
+                options.UseInMemoryDatabase(dbName);
             });
 
             // Replace authentication with test scheme

@@ -137,7 +137,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DescansarioDbContext>();
-    db.Database.Migrate();
+    // Los tests de integración usan InMemory, que no soporta migraciones
+    if (db.Database.IsRelational())
+        db.Database.Migrate();
 
     // Poblar feriados de Argentina si no existen
     if (!await db.Holidays.AnyAsync())

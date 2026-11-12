@@ -25,6 +25,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Descansario.Api\Descansario.Api.csproj" />
   </ItemGroup>
 

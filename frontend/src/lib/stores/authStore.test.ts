@@ -41,10 +41,12 @@ describe('authStore', () => {
         role: 'User' as const,
         personId: 1,
         personName: 'Test Person',
+        createdAt: '2025-01-01T00:00:00Z',
       };
 
       vi.mocked(authService.login).mockResolvedValue({
         token: 'test-token',
+        expiresAt: '2099-01-01T00:00:00Z',
         user: mockUser,
       });
 
@@ -106,9 +108,11 @@ describe('authStore', () => {
         role: 'User' as const,
         personId: null,
         personName: null,
+        createdAt: '2025-01-01T00:00:00Z',
       };
       vi.mocked(authService.login).mockResolvedValue({
         token: 'test-token',
+        expiresAt: '2099-01-01T00:00:00Z',
         user: mockUser,
       });
       await authStore.login('test@test.com', 'password');
@@ -150,6 +154,7 @@ describe('authStore', () => {
         role: 'User' as const,
         personId: 1,
         personName: 'Test Person',
+        createdAt: '2025-01-01T00:00:00Z',
       };
 
       vi.mocked(authService.getUser).mockReturnValue(mockUser);

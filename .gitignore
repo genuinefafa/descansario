@@ -98,3 +98,6 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+
+# Solución del backend (la usa el CI)
+!backend/Descansario.sln

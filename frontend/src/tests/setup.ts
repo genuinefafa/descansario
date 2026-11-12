@@ -1,8 +1,8 @@
 import '@testing-library/svelte/vitest';
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 
 // Mock fetch globally
-global.fetch = vi.fn();
+globalThis.fetch = vi.fn();
 
 // Mock localStorage
 const localStorageMock = {

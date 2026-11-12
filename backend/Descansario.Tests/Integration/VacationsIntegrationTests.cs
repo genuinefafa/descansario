@@ -68,8 +68,8 @@ public class VacationsIntegrationTests : IClassFixture<CustomWebApplicationFacto
         var createDto = new CreateVacationDto
         {
             PersonId = 1,
-            StartDate = new DateTime(2025, 11, 24), // Monday
-            EndDate = new DateTime(2025, 11, 28),   // Friday
+            StartDate = new DateTime(2025, 12, 1),  // Monday (sin feriados AR esa semana)
+            EndDate = new DateTime(2025, 12, 5),    // Friday
             Status = "Approved"
         };
 
@@ -224,7 +224,7 @@ public class VacationsIntegrationTests : IClassFixture<CustomWebApplicationFacto
     #region DELETE /api/vacations/{id}
 
     [Fact]
-    public async Task DeleteVacation_ReturnsNoContent_WhenExists()
+    public async Task DeleteVacation_ReturnsOk_WhenExists()
     {
         // Arrange: Create a vacation first
         var createDto = new CreateVacationDto
@@ -241,7 +241,7 @@ public class VacationsIntegrationTests : IClassFixture<CustomWebApplicationFacto
         var response = await _client.DeleteAsync($"/api/vacations/{created!.Id}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         // Verify it's deleted
         var getResponse = await _client.GetAsync($"/api/vacations/{created.Id}");
@@ -266,8 +266,8 @@ public class VacationsIntegrationTests : IClassFixture<CustomWebApplicationFacto
     public async Task GetWorkingDays_ReturnsCorrectCount()
     {
         // Arrange: Monday to Friday
-        var startDate = new DateTime(2025, 11, 24).ToString("yyyy-MM-dd");
-        var endDate = new DateTime(2025, 11, 28).ToString("yyyy-MM-dd");
+        var startDate = new DateTime(2025, 12, 1).ToString("yyyy-MM-dd");
+        var endDate = new DateTime(2025, 12, 5).ToString("yyyy-MM-dd");
 
         // Act
         var response = await _client.GetAsync($"/api/vacations/working-days?startDate={startDate}&endDate={endDate}");

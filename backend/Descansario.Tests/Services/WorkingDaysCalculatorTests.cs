@@ -74,7 +74,7 @@ public class WorkingDaysCalculatorTests : IDisposable
         {
             Date = new DateTime(2025, 11, 26), // Wednesday
             Name = "Test Holiday",
-            Country = "AR"
+            Country = Country.AR
         });
         await _dbContext.SaveChangesAsync();
 
@@ -96,7 +96,7 @@ public class WorkingDaysCalculatorTests : IDisposable
         {
             Date = new DateTime(2025, 11, 26), // Wednesday
             Name = "Test Holiday",
-            Country = "AR"
+            Country = Country.AR
         });
         await _dbContext.SaveChangesAsync();
 
@@ -157,8 +157,8 @@ public class WorkingDaysCalculatorTests : IDisposable
 
         _dbContext.Holidays.AddRange(new[]
         {
-            new Holiday { Date = new DateTime(2025, 11, 26), Name = "Holiday 1", Country = "AR" }, // Wed
-            new Holiday { Date = new DateTime(2025, 12, 1), Name = "Holiday 2", Country = "AR" }   // Mon
+            new Holiday { Date = new DateTime(2025, 11, 26), Name = "Holiday 1", Country = Country.AR }, // Wed
+            new Holiday { Date = new DateTime(2025, 12, 1), Name = "Holiday 2", Country = Country.AR }   // Mon
         });
         await _dbContext.SaveChangesAsync();
 
@@ -197,8 +197,8 @@ public class WorkingDaysCalculatorTests : IDisposable
         // Arrange: Add holidays across different months
         _dbContext.Holidays.AddRange(new[]
         {
-            new Holiday { Date = new DateTime(2025, 11, 26), Name = "Nov Holiday", Country = "AR" },
-            new Holiday { Date = new DateTime(2025, 12, 1), Name = "Dec Holiday", Country = "AR" }
+            new Holiday { Date = new DateTime(2025, 11, 26), Name = "Nov Holiday", Country = Country.AR },
+            new Holiday { Date = new DateTime(2025, 12, 1), Name = "Dec Holiday", Country = Country.AR }
         });
         await _dbContext.SaveChangesAsync();
 
