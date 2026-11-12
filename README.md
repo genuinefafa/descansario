@@ -204,7 +204,7 @@ _(Próximamente)_
 
 **📖 Documentación:**
 - [ESPECIFICACIONES.md](docs/ESPECIFICACIONES.md) - Features y diseño completo
-- [ROADMAP.md](docs/ROADMAP.md) - **Plan detallado para deploy público**
+- [Issues `idea`](https://github.com/genuinefafa/descansario/issues?q=is%3Aopen+label%3Aidea) - Lo pendiente
 - [SECURITY.md](docs/SECURITY.md) - Checklist de seguridad
 - [MIGRACIONES.md](docs/MIGRACIONES.md) - Guía de migraciones EF Core
 - [DEVELOPMENT.md](frontend/DEVELOPMENT.md) - Guía de desarrollo frontend
